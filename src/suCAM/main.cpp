@@ -2,10 +2,10 @@
 #include <igl/readOBJ.h>
 #include <igl/readOFF.h>
 #include <igl/per_face_normals.h>
-#define DEBUG_TMP
+//#define DEBUG_TMP
 #ifndef DEBUG_TMP
-//#include <igl/opengl/glfw/Viewer.h>
-#include "suViewer.h"
+#include <igl/opengl/glfw/Viewer.h>
+
 //#include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 //#include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 //#include <imgui/imgui.h>
@@ -50,9 +50,8 @@ UTFUNC(TestHere)
 UTFUNC(suCAM)
 {
 #ifndef DEBUG_TMP
-	
 
-	suViewer viewer;
+	igl::opengl::glfw::Viewer viewer;
 	igl::viewer::glfw::plugin_selection  plugin_selection;
 	// Attach a menu plugin
 	igl::opengl::glfw::imgui::Plugin_Menu menu;

@@ -39,5 +39,6 @@ IGL_INLINE bool suViewer::load_mesh_from_file(
 		// Add per-vertex colors
 		data().set_colors(C);
 	}
+	std::cout << "Hi there!\n";
 	return true;
 }

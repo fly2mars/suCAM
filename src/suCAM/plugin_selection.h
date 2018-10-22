@@ -5,9 +5,13 @@
 #include <igl/unproject_onto_mesh.h>
 #include <igl/triangle_triangle_adjacency.h>
 
+#define LABEL_COW  999
 int gFid = -1;
 std::vector<std::set<Eigen::DenseIndex>> AFF;
 Eigen::VectorXd TC;    //trangle center 
+Eigen::MatrixXd TT;
+Eigen::MatrixXd N;
+Eigen::MatrixXd label_matrix;
 
 void generate_adjacent_faces_by_vertex(const Eigen::MatrixXi & F,
 	const Eigen::MatrixXd & V,
@@ -25,12 +29,24 @@ void generate_adjacent_faces_by_vertex(const Eigen::MatrixXi & F,
 		}
 	}
 }
+template <typename DerivedF>
+void generate_adjacent_faces_by_faces(
+	const Eigen::PlainObjectBase<DerivedF> &F)
+{
+	DerivedF TTi;
+	igl::triangle_triangle_adjacency(F, TT, TTi);
+
+}
 
 void temp_init(const Eigen::MatrixXi & F,
-	const Eigen::MatrixXd & V)
+	const Eigen::MatrixXd & V,
+    const Eigen::MatrixXd & FN)
 {
 	generate_adjacent_faces_by_vertex(F, V, AFF);
-
+	generate_adjacent_faces_by_faces(F);
+	N = FN;
+	label_matrix.resize(F.rows(), 2);   //two lables for each face
+	label_matrix.setConstant(-1);
 	//compute center coordinate for each triangles
 	
 }
@@ -61,6 +77,38 @@ float sim(Eigen::DenseIndex i, Eigen::DenseIndex j,
 	return sim;
 }
 
+bool should_propagate(int i, int j, int label)
+{
+	//double dist = 
+	//const max_diff_mean_curvature = 1.0
+	const double max_angle = 10;
+	double dot = N.row(i).dot(N.row(j)) / (N.row(i).norm() * N.row(j).norm());
+	double angle_between_normal = acos(dot);
+	return angle_between_normal <= max_angle && 
+		   label != label_matrix(j,0);
+		/*return neibour.label == label &&
+		angle_between_normal <= max_angle * dist &&
+		diff_mean_curvature <= max_diff_mean_curvature * dist;*/
+
+}
+
+typedef std::function<void(int idx)> ProcessCallback;
+void propagate_from_neighbor(int cur_face_idx, int label, const ProcessCallback &proc = ProcessCallback())
+{	
+	proc(cur_face_idx);
+	label_matrix(cur_face_idx, 0) = label;
+	for (int i=0; i<3; i++)
+	{
+		int j = TT(cur_face_idx, i);
+		if (should_propagate(cur_face_idx, j, label) )
+		{
+			std::cout << "propagate to " << j << "\n";
+			propagate_from_neighbor(j, label, proc);
+		}
+	}
+
+}
+
 namespace igl
 {
 	namespace viewer
@@ -85,8 +133,9 @@ namespace igl
 							//init AFF
 							if (AFF.empty())
 							{
-								temp_init(viewer->data().F, viewer->data().V);
+								temp_init(viewer->data().F, viewer->data().V, viewer->data().F_normals);
 								std::cout << AFF.size() << " faces in AFF init done\n";
+								std::cout << TT.rows() << "faces in ATT init done\n";
 							}
 						}
 						else {
@@ -109,7 +158,7 @@ namespace igl
 							if (gFid != -1)
 							{
 								std::cout << "Get surround region..\n";
-								Eigen::MatrixXi &F_ = viewer->data().F;
+								/*Eigen::MatrixXi &F_ = viewer->data().F;
 								for (int ii = 0; ii < 3; ii++)
 								{
 									int vid = F_(gFid, ii);
@@ -117,7 +166,11 @@ namespace igl
 									{
 										surround_face_set.insert(idx);
 									}
-								}								
+								}			*/
+								auto callback_process = [&](int idx) {
+									surround_face_set.insert(idx);
+								};
+								propagate_from_neighbor(gFid, LABEL_COW, callback_process);
 							}
 							
 							//compare each face i with face gFid(last labeled set)
@@ -130,8 +183,9 @@ namespace igl
 							for (auto i : Sel_Set)
 							{
 								C.row(i) << 1, 0, 0;
-								viewer->data().set_colors(C);								
+															
 							}
+							viewer->data().set_colors(C);
 							std::cout << Sel_Set.size() << " faces are processed!\n";
 							
 						}
@@ -154,8 +208,17 @@ namespace igl
 							// hover effect
 							Eigen::Vector3d ori_color = C.row(fid);
 							C.row(fid) << 1, 0, 0;
+							for (int j = 0; j < 3; j++)
+							{
+								C.row(TT(fid, j)) << 1, 0, 0;
+							}
+							
 							viewer->data().set_colors(C);
 							C.row(fid) = ori_color;
+							for (int j = 0; j < 3; j++)
+							{
+								C.row(TT(fid, j)) = ori_color;
+							}
 							
 							gFid = fid; //copy to global variable
 							return true;
