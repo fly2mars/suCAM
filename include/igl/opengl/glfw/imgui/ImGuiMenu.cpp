@@ -188,6 +188,7 @@ IGL_INLINE void ImGuiMenu::draw_viewer_menu()
     }
   }
 
+
   // Mesh
   if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen))
   {
