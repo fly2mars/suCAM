@@ -81,15 +81,20 @@ bool should_propagate(int i, int j, int label)
 {
 	//double dist = 
 	//const max_diff_mean_curvature = 1.0
-	const double max_angle = 10;
-	double dot = N.row(i).dot(N.row(j)) / (N.row(i).norm() * N.row(j).norm());
-	double angle_between_normal = acos(dot);
+	const double max_angle = 30;
+	const double cov2angle = 180 / igl::PI;
+	double dot = N.row(i).dot(N.row(j)) / sqrt((N.row(i).norm() * N.row(j).norm()) );
+	double angle_between_normal = acos(dot) * cov2angle;
+
+	/*std::cout << "\n--\n";
+	std::cout << "--" << N.row(i) << " " << N.row(j) << " " << std::endl;
+	std::cout << "--" << angle_between_normal << std::endl;*/
 	return angle_between_normal <= max_angle && 
-		   label != label_matrix(j,0);
+		   label != label_matrix(j,0);   //don't deal with labeled triangle
 		/*return neibour.label == label &&
 		angle_between_normal <= max_angle * dist &&
 		diff_mean_curvature <= max_diff_mean_curvature * dist;*/
-
+    
 }
 
 typedef std::function<void(int idx)> ProcessCallback;
