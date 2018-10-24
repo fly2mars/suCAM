@@ -98,17 +98,41 @@ bool should_propagate(int i, int j, int label)
 }
 
 typedef std::function<void(int idx)> ProcessCallback;
-void propagate_from_neighbor(int cur_face_idx, int label, const ProcessCallback &proc = ProcessCallback())
+void propagate_from_neighbor(int &cur_face_idx, int &label, const ProcessCallback &proc = ProcessCallback())
 {	
 	proc(cur_face_idx);
 	label_matrix(cur_face_idx, 0) = label;
 	for (int i=0; i<3; i++)
 	{
 		int j = TT(cur_face_idx, i);
+		if (j == -1) continue;  //debug
 		if (should_propagate(cur_face_idx, j, label) )
 		{
-			std::cout << "propagate to " << j << "\n";
+			//std::cout << "propagate to " << j << "\n";
 			propagate_from_neighbor(j, label, proc);
+		}
+	}
+
+}
+
+void propagate_from_neighbor_loop(int cur_face_idx, int label, const ProcessCallback &proc = ProcessCallback())
+{
+	std::vector<int> face_list;
+	face_list.push_back(cur_face_idx);
+	while (!face_list.empty())
+	{
+		int cur_id = face_list.back();
+		proc(cur_id);
+		label_matrix(cur_id, 0) = label;
+		face_list.pop_back();
+		for (int i = 0; i<3; i++)
+		{
+			int j = TT(cur_id, i);
+			if (j == -1) continue;  //debug
+			if (should_propagate(cur_id, j, label))
+			{
+				face_list.push_back(j);
+			}
 		}
 	}
 
@@ -175,7 +199,8 @@ namespace igl
 								auto callback_process = [&](int idx) {
 									surround_face_set.insert(idx);
 								};
-								propagate_from_neighbor(gFid, LABEL_COW, callback_process);
+								int cur_label = LABEL_COW;
+								propagate_from_neighbor_loop(gFid, cur_label, callback_process);
 							}
 							
 							//compare each face i with face gFid(last labeled set)
@@ -215,6 +240,8 @@ namespace igl
 							C.row(fid) << 1, 0, 0;
 							for (int j = 0; j < 3; j++)
 							{
+								//std::cout << TT(fid, j) << std::endl;  //debug
+								if (TT(fid, j) == -1) continue;
 								C.row(TT(fid, j)) << 1, 0, 0;
 							}
 							
@@ -222,6 +249,7 @@ namespace igl
 							C.row(fid) = ori_color;
 							for (int j = 0; j < 3; j++)
 							{
+								if (TT(fid, j) == -1) continue;
 								C.row(TT(fid, j)) = ori_color;
 							}
 							
