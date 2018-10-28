@@ -6,12 +6,15 @@
 #ifndef DEBUG_TMP
 #include <igl/opengl/glfw/Viewer.h>
 
+
 //#include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 //#include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
 //#include <imgui/imgui.h>
 #include <igl/jet.h>
 #include "plugin_selection.h"
 #include "plugin_menu.h"
+#include "plugins/plugin_load_off.h"
+#include "suGlobalState.h"
 #endif
 
 #define MODEL_PATH "data/"
@@ -53,11 +56,13 @@ UTFUNC(suCAM)
 
 	igl::opengl::glfw::Viewer viewer;
 	igl::viewer::glfw::plugin_selection  plugin_selection;
+	igl::viewer::glfw::Plugin_Load_Off   plugin_load_off;
 	// Attach a menu plugin
 	igl::opengl::glfw::imgui::Plugin_Menu menu;
 	viewer.plugins.push_back(&menu);
 	viewer.plugins.push_back(&plugin_selection);
-	
+	viewer.plugins.push_back(&plugin_load_off);
+	suGlobalState::gOnly().set_viewer(&viewer);
 
 	// Launch the viewer
 	viewer.launch();

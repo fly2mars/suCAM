@@ -13,8 +13,40 @@
 #include <imgui_fonts_droid_sans.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <array>
+#include "../suGlobalState.h"
 ////////////////////////////////////////////////////////////////////////////////
 
+
+
+namespace ImGui
+{
+	
+	//using combo and list with stl
+	static auto vector_getter = [](void* vec, int idx, const char** out_text)
+	{
+		auto& vector = *static_cast<std::vector<std::string>*>(vec);
+		if (idx < 0 || idx >= static_cast<int>(vector.size())) { return false; }
+		*out_text = vector.at(idx).c_str();
+		return true;
+	};
+
+	bool Combo(const char* label, int* currIndex, std::vector<std::string>& values)
+	{
+		if (values.empty()) { return false; }
+		return Combo(label, currIndex, vector_getter,
+			static_cast<void*>(&values), values.size());
+	}
+
+	bool ListBox(const char* label, int* currIndex, std::vector<std::string>& values)
+	{
+		if (values.empty()) { return false; }
+		return ListBox(label, currIndex, vector_getter,
+			static_cast<void*>(&values), values.size());
+	}
+
+
+}
 namespace igl
 {
 	namespace opengl
@@ -170,10 +202,28 @@ namespace igl
 					ImGui::End();
 				}
 
+				/*
+				* Show tip for each widget. 
+				*/
+				static void ShowHelpMarker(const char* desc)
+				{
+					ImGui::TextDisabled("(?)");
+					if (ImGui::IsItemHovered())
+					{
+						ImGui::BeginTooltip();
+						ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+						ImGui::TextUnformatted(desc);
+						ImGui::PopTextWrapPos();
+						ImGui::EndTooltip();
+					}
+				}
+
+				
+
 				IGL_INLINE void Plugin_Menu::draw_viewer_menu()
 				{
 					// Workspace
-					if (ImGui::CollapsingHeader("Workspace", ImGuiTreeNodeFlags_DefaultOpen))
+					/*if (ImGui::CollapsingHeader("Workspace", ImGuiTreeNodeFlags_DefaultOpen))
 					{
 						float w = ImGui::GetContentRegionAvailWidth();
 						float p = ImGui::GetStyle().FramePadding.x;
@@ -186,7 +236,7 @@ namespace igl
 						{
 							viewer->save_scene();
 						}
-					}
+					}*/
 
 
 					// Mesh
@@ -203,17 +253,68 @@ namespace igl
 						{
 							viewer->open_dialog_save_mesh();
 						}
+						// Typically we would use ImVec2(-1.0f,0.0f) to use all available width, or ImVec2(width,0.0f) for a specified width. ImVec2(0.0f,0.0f) uses ItemWidth.
+						ImGui::ProgressBar(suGlobalState::gOnly().progress, ImVec2(-1.0f, 0.0f));
+						//ImGui::SameLine(0.0f, ImGui::GetStyle().ItemInnerSpacing.x);
+						//ImGui::Text("Progress Bar");
+
 					}
 
 					// Customized menu
-					if (ImGui::CollapsingHeader("Customized Menu", ImGuiTreeNodeFlags_DefaultOpen))
+					if (ImGui::CollapsingHeader("Selection Menu", ImGuiTreeNodeFlags_DefaultOpen))
 					{
-						float w = ImGui::GetContentRegionAvailWidth();
-						float p = ImGui::GetStyle().FramePadding.x;
+						/*float w = ImGui::GetContentRegionAvailWidth();
+						float p = ImGui::GetStyle().FramePadding.x;*/
+
+						ImGui::Text("Object Label Management");
 						
-						ImGui::Text("Labels");
+						static char str0[128] = "";
+						ImGui::InputText("##ObjectLabel", str0, IM_ARRAYSIZE(str0));
+						ImGui::SameLine();
+						if (ImGui::Button("Add Label", ImVec2(-1, 0)))
+						{
+							suGlobalState::gOnly().object_labels.push_back(str0);
+							std::cout << str0 << std::endl;
+						}
+
+						//Comb object labels
+						{
+							ImGui::Combo("##object_labels", &(suGlobalState::gOnly().cur_index_of_object_label), 
+								suGlobalState::gOnly().object_labels);
+							ImGui::SameLine(); ShowHelpMarker("Specify an object label for your choose\n");
+						}
+
+						//ImGui::Indent();						
+						//ImGui::SameLine();
+						ImGui::Text("Surface Label Management");
+
+						static char str1[128] = "";
+						ImGui::InputText("##SurfaceLabel", str1, IM_ARRAYSIZE(str1));
+						ImGui::SameLine();
+						if (ImGui::Button("Add Label##surface", ImVec2(-1, 0)))
+						{
+							suGlobalState::gOnly().surface_labels.push_back(str1);
+							std::cout << str1 << std::endl;
+						}
+						//Comb surface labels
+						{
+							
+							ImGui::Combo("##surface_labels", &(suGlobalState::gOnly().cur_index_of_surface_label), 
+								suGlobalState::gOnly().surface_labels);
+							ImGui::SameLine(); ShowHelpMarker("Specify a surface label for your choose\n");
+						}
 						
-						ImGui::Text("Selection");
+						//ImGui::Unindent();
+						ImGui::Text("Propagation parameters:");
+						
+						ImGui::DragFloat("Angle", &(suGlobalState::gOnly().max_angle_between_face_normal), 0.01f, 0.0f, 180.0f, "%.1f");
+						ImGui::SameLine(); ShowHelpMarker("Angle  between triangle");
+						ImGui::DragFloat("Curvature", &(suGlobalState::gOnly().max_curvature_between_face), 0.01f, 0.0f, 180.0f, "%.1f");
+						ImGui::SameLine(); ShowHelpMarker("Curvature  between triangle");
+
+
+						
+
 						
 						
 					}
