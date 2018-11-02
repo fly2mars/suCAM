@@ -35,6 +35,7 @@ public:
 
 	//selection
 	void clear_selection();
+	int  get_cur_color_id();
 
 public:
 	//AppData operation
@@ -55,6 +56,7 @@ public:
 	float progress;
 	igl::opengl::glfw::Viewer *viewer;
 	Eigen::MatrixXd predfined_colors;
+	bool b_label_item[2];
 
 public:
 	static suGlobalState *p_gOnly;

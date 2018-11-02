@@ -57,6 +57,8 @@ suGlobalState::suGlobalState()
 		35, 44, 22;   //dark_olive_green
 
 	predfined_colors = predfined_colors / 255;
+	b_label_item[0] = false;
+	b_label_item[1] = false;
 }
 suGlobalState & suGlobalState::gOnly()
 {
@@ -81,12 +83,31 @@ void suGlobalState::clear()
 {
 	bSelect_Mode = false;
 	progress = 0;
+	b_label_item[0] = false;
+	b_label_item[1] = false;
 
 	if (!pData_) delete pData_;
 }
 
 void suGlobalState::clear_selection()
 {
-	label_matrix.setConstant(-1);
+	if (b_label_item[0])
+	{
+		label_matrix.col(0).setConstant(-1);
+	}
+	if (b_label_item[1])
+	{
+		label_matrix.col(1).setConstant(-1);
+	}
+	
+}
+
+int suGlobalState::get_cur_color_id()
+{
+	if (b_label_item[0])
+	{
+		return cur_index_of_object_label;
+	}
+	return cur_index_of_object_label;
 }
 

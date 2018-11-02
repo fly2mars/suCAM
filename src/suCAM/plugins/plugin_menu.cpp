@@ -281,10 +281,11 @@ namespace igl
 						{
 							ImGui::Combo("##object_labels", &(suGlobalState::gOnly().cur_index_of_object_label), 
 								suGlobalState::gOnly().object_labels);
-							ImGui::SameLine(); ShowHelpMarker("Specify an object label for your choose\n");
+							ImGui::SameLine(); //ShowHelpMarker("Specify an object label for your choose\n");
+							ImGui::Checkbox("Object", &suGlobalState::gOnly().b_label_item[0]);
 						}
-
-						//ImGui::Indent();						
+						if (suGlobalState::gOnly().b_label_item[0])   suGlobalState::gOnly().b_label_item[1] = 0;
+						//				
 						//ImGui::SameLine();
 						ImGui::Text("Surface Label Management");
 
@@ -301,22 +302,21 @@ namespace igl
 							
 							ImGui::Combo("##surface_labels", &(suGlobalState::gOnly().cur_index_of_surface_label), 
 								suGlobalState::gOnly().surface_labels);
-							ImGui::SameLine(); ShowHelpMarker("Specify a surface label for your choose\n");
+							ImGui::SameLine(); //ShowHelpMarker("Specify a surface label for your choose\n");
+							ImGui::Checkbox("Surface", &suGlobalState::gOnly().b_label_item[1]);
 						}
+
+						if (suGlobalState::gOnly().b_label_item[1])   suGlobalState::gOnly().b_label_item[0] = 0;
 						
-						//ImGui::Unindent();
+
+						//
 						ImGui::Text("Propagation parameters:");
-						
+						ImGui::Indent();
 						ImGui::DragFloat("Angle", &(suGlobalState::gOnly().max_angle_between_face_normal), 0.01f, 0.0f, 180.0f, "%.1f");
 						ImGui::SameLine(); ShowHelpMarker("Angle  between triangle");
 						ImGui::DragFloat("Curvature", &(suGlobalState::gOnly().max_curvature_between_face), 0.01f, 0.0f, 180.0f, "%.1f");
-						ImGui::SameLine(); ShowHelpMarker("Curvature  between triangle");
-
-
-						
-
-						
-						
+						ImGui::SameLine(); ShowHelpMarker("Curvature  between triangle");						
+						ImGui::Unindent();
 					}
 
 
