@@ -100,6 +100,14 @@ namespace igl
 	
 				IGL_INLINE virtual bool key_down(int key, int modifiers)
 				{
+					if (key == 'C')
+					{
+						if (suGlobalState::gOnly().C.size() == 0)
+						{
+							return false;
+						}
+						viewer->data().set_colors(suGlobalState::gOnly().C);
+					}
 					if (key == 'S')
 					{
 						b_select_mode = !b_select_mode;
@@ -180,7 +188,6 @@ namespace igl
 
 
 				
-
 				IGL_INLINE virtual bool mouse_down(int button, int modifier)
 				{
 					if (!b_select_mode) return false;

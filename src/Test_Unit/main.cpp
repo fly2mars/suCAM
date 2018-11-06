@@ -19,6 +19,15 @@ Eigen::MatrixXd V;
 Eigen::MatrixXi F;
 std::string filename = MODEL_PATH + std::string("cow.off");
 
+
+UTFUNC(test_eigen)
+{
+	Eigen::MatrixXd A;
+	A.resize(4, 3);
+	A.setConstant(1);
+	std::cout <<A.rowwise() -  A.colwise().mean() << std::endl;
+}
+
 UTFUNC(ComputeVolume)
 {
 	return;

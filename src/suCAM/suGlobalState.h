@@ -39,6 +39,7 @@ public:
 
 public:
 	//AppData operation
+	
 
 	//Parameters for selection
 	bool bSelect_Mode;
@@ -49,6 +50,7 @@ public:
 	float max_angle_between_face_normal;
 	float max_curvature_between_face;
 
+	Eigen::MatrixXd C;     //colors read from file
 	Eigen::MatrixXd TT;
 	Eigen::MatrixXd label_matrix;
 
