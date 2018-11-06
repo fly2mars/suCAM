@@ -96,10 +96,12 @@ IGL_INLINE bool igl::SU::readOFF(
   }
   sscanf(line,"%d %d %d",&number_of_vertices,&number_of_faces,&number_of_edges);
   //V.resize(number_of_vertices);
+  if (has_vertexColors)
+	  C.resize(number_of_vertices);
+ 
   if (has_normals)
     N.resize(number_of_vertices);
-  if (has_vertexColors)
-    C.resize(number_of_vertices);
+  
   F.resize(number_of_faces);
   //printf("%s %d %d %d\n",(has_normals ? "NOFF" : "OFF"),number_of_vertices,number_of_faces,number_of_edges);
   
@@ -179,7 +181,8 @@ IGL_INLINE bool igl::SU::readOFF(
 	  V[v.second] = v.first;
   }
   //remove redundent item in C
-  C.erase(C.begin() + vMap.size(), C.end());
+  if (has_vertexColors)
+	  C.erase(C.begin() + vMap.size(), C.end());
   // Read faces
   for(int i = 0;i<number_of_faces;)
   {
