@@ -14,6 +14,7 @@
 #include "plugin_selection.h"
 #include "plugin_menu.h"
 #include "plugins/plugin_load_off.h"
+#include "plugins/plugin_repair_and_export_mesh.h"
 #include "suGlobalState.h"
 #endif
 
@@ -55,13 +56,16 @@ UTFUNC(suCAM)
 #ifndef DEBUG_TMP
 
 	igl::opengl::glfw::Viewer viewer;
-	igl::viewer::glfw::plugin_selection  plugin_selection;
 	igl::viewer::glfw::Plugin_Load_Off   plugin_load_off;
+
+	igl::viewer::glfw::plugin_selection  plugin_selection;	
+	igl::viewer::glfw::plugin_repair_and_export plugin_re;
 	// Attach a menu plugin
 	igl::opengl::glfw::imgui::Plugin_Menu menu;
 	viewer.plugins.push_back(&menu);
 	viewer.plugins.push_back(&plugin_selection);
 	viewer.plugins.push_back(&plugin_load_off);
+	viewer.plugins.push_back(&plugin_re);
 	suGlobalState::gOnly().set_viewer(&viewer);
 
 	// Launch the viewer

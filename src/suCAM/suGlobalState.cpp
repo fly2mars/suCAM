@@ -33,14 +33,15 @@ suGlobalState::suGlobalState()
 	max_curvature_between_face = 1;
 	clear();
 
-	predfined_colors.resize(20, 3);
+	predfined_colors.resize(21, 3);
 	predfined_colors << 255, 179, 0,  //vivid_yellow
 		128, 62, 117, //strong_purple
 		255, 104, 0,  //vivid_orange 
-		166, 189, 215,//very_light_blue
+		180, 255, 180,    //green
 		193, 0, 32,   //vivid_red
 		206, 162, 98, //grayish_yellow
 		129, 112, 102,//medium_gray
+		166, 189, 255,//very_light_blue
 		//these aren't good for people with defective color vision:
 		0, 125, 52,   //vivid_green
 		246, 118, 142,//strong_purplish_pink
@@ -108,6 +109,6 @@ int suGlobalState::get_cur_color_id()
 	{
 		return cur_index_of_object_label;
 	}
-	return cur_index_of_object_label;
+	return cur_index_of_surface_label;
 }
 
