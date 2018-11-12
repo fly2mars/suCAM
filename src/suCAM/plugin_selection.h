@@ -107,6 +107,33 @@ namespace igl
 							return false;
 						}
 						viewer->data().set_colors(suGlobalState::gOnly().C);
+	
+					}
+					if (key == 'F') //use face color
+					{
+						if (suGlobalState::gOnly().C.size() == 0)
+						{
+							return false;
+						}
+						Eigen::MatrixXi &F = viewer->data().F;
+						Eigen::MatrixXd C = suGlobalState::gOnly().C;
+						Eigen::MatrixXd FC;
+						int N = F.rows();
+						
+						FC.resize(N, 3);
+	
+						for (int i = 0; i < N; i++)
+						{
+							//use vert(0)'s color for each face
+							for (int j = 0; j < 3; j++)
+							{
+								FC(i, j) = C(F(i, 0), j);
+							}
+						}
+						
+						viewer->data().set_colors(FC);
+						viewer->data().set_colors(suGlobalState::gOnly().C);
+
 					}
 					if (key == 'S')
 					{
@@ -215,6 +242,7 @@ namespace igl
 						else if (button == static_cast<int>(igl::opengl::glfw::Viewer::MouseButton::Right)) {
 							suGlobalState::gOnly().clear_selection();
 							C = Eigen::MatrixXd::Constant(viewer->data().F.rows(), 3, 1);
+							viewer->data().set_colors(C);
 							std::cout << " selected faces is cleared " << std::endl;
 							
 						}

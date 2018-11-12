@@ -51,6 +51,7 @@ public:
 	float max_curvature_between_face;
 
 	Eigen::MatrixXd C;     //colors read from file
+	Eigen::MatrixXd FC;    //face colors
 	Eigen::MatrixXd TT;
 	Eigen::MatrixXd label_matrix;
 

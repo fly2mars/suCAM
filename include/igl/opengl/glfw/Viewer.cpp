@@ -812,6 +812,7 @@ namespace glfw
     int width_window, height_window;
     glfwGetWindowSize(window, &width_window, &height_window);
 
+	if (!width_window) return;
     auto highdpi_tmp = width/width_window;
 
     if(fabs(highdpi_tmp-highdpi)>1e-8)
