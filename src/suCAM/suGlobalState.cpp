@@ -24,6 +24,7 @@ suGlobalState::suGlobalState()
 
 	object_labels.push_back("box");
 	object_labels.push_back("ball");
+	object_labels.push_back("Plane");
 	surface_labels.push_back("Plane");
 	surface_labels.push_back("Surface");
 	cur_index_of_object_label = 0;

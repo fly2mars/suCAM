@@ -93,7 +93,7 @@ namespace igl
 					return false;
 
 				//center object												
-				V = V.rowwise() - V.colwise().mean();
+				//V = V.rowwise() - V.colwise().mean();
 
 				viewer->data().set_mesh(V, F);
 

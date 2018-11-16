@@ -4,7 +4,8 @@
 #include <iostream>
 #include <igl/unproject_onto_mesh.h>
 #include <igl/triangle_triangle_adjacency.h>
-#include "suGlobalState.h"
+#include "../suGlobalState.h"
+#include <igl/list_to_matrix.h>
 
 namespace igl
 {
@@ -20,25 +21,24 @@ namespace igl
 					plugin_name = "plugin_repair_and_export";
 				}
 	
-				IGL_INLINE virtual bool key_down(int key, int modifiers)
-				{
-					if (key == 'O')
-					{
-						//1. segment V, F, C into V_i, F_i and C_i
-						//std::cout << "Processing " << viewer->
-						std::cout << "Run repair and export ..." << std::endl;
-					}
-					return false;
-				
-				}
+				IGL_INLINE virtual bool key_down(int key, int modifiers);
 					
-				
-				
-			public:
-				bool b_select_mode;
-				Eigen::MatrixXd C;
+
+				//internal func
+				typedef std::vector<Eigen::DenseIndex> Face;
+				typedef std::vector<Face>              Faces;
+				typedef std::vector<double>            Vert;
+				typedef std::vector<double>            Color;
+				typedef std::vector<Vert>              Verts;
+				std::map<int, Faces> Fs;
+				bool segment_mesh(Eigen::MatrixXd &label_matrix, Eigen::MatrixXi &F, Eigen::MatrixXd V);
+
 			};
 		}
 		
 	}
 }
+
+#ifndef IGL_STATIC_LIBRARY
+#  include "plugin_repair_and_export_mesh.cpp"
+#endif
