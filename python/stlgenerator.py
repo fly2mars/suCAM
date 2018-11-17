@@ -53,5 +53,5 @@ if __name__ == "__main__":
     sendactivity("clearalltriangles")
     def swapyz(t):
         return (t[0], -t[2], t[1] - 3)
-    sr = stlreader("/home/goatchurch/geom3d/stlfiles/impellor1.stl", trans=swapyz)
+    sr = stlreader("e:/data/stl/13.skull.stl", trans=swapyz)
     sendactivity("triangles", codetriangles=list(sr))

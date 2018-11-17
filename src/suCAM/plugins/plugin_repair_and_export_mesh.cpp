@@ -140,16 +140,32 @@ namespace igl
 					{
 						return false; 
 					}
-					C_rect = igl::list_to_matrix(cSet, C_subset);
-					if (!C_rect)
+					if (has_vert_color)
 					{
-						return false;
+						C_rect = igl::list_to_matrix(cSet, C_subset);
+						if (!C_rect)
+						{
+							return false;
+						}
 					}
-					//filling hole here
-					if (igl::writeOFF(std::string("") + suGlobalState::gOnly().object_labels[iLabel] + std::string(".off"), V_subset, F_subset, C_subset))
+					
+					//TODO: Filling hole here
+
+					if (has_vert_color)
 					{
-						std::cout << suGlobalState::gOnly().object_labels[iLabel] + std::string(".off") << " is generated.\n";
+						if (igl::writeOFF(std::string("") + suGlobalState::gOnly().object_labels[iLabel] + std::string(".off"), V_subset, F_subset, C_subset))
+						{
+							std::cout << suGlobalState::gOnly().object_labels[iLabel] + std::string(".off") << " is generated.\n";
+						}
 					}
+					else
+					{
+						if (igl::writeOFF(std::string("") + suGlobalState::gOnly().object_labels[iLabel] + std::string(".off"), V_subset, F_subset))
+						{
+							std::cout << suGlobalState::gOnly().object_labels[iLabel] + std::string(".off") << " is generated.\n";
+						}
+					}
+					
 
 				}
 				//std::vector<std::vector<Eigen::DenseIndex>> &Fi = Fs[0];
