@@ -1,94 +1,40 @@
-# Description #
+#### Introduction
+多轴打印路径规划系统目的是提供一个独立的，针对多轴打印的空间填充路径生成工具，目前只能提供平面的填充方式
+#### How to use
+基本代码已经上传到GitHub的suCAM目录。
+- 在使用前注意先安装以下工具和python库
+1. install Git bash
+2. install Anaconda
 
-This program is for generating black and while PNG files from an STL file at particular z heights.
+- 安装相应工具包
+作为探索性的代码，本系统界面的构建依赖于Qt，PyQtgraph，stl的读取依赖于numpy-stl,划分依赖于stl2png；路径生成和优化依赖于opencv、clipper实现。
 
-It has applications to [SLA stereolithography](http://3dprintingfromscratch.com/common/types-of-3d-printers-or-3d-printing-technologies-overview/#sla) where a projector shines an image upwards 
-through the base of a glass dish filled with a liquid that solidifies where the light touches it.  
-The solid printed part is drawn upwards out of the liquid like the reverse of melting ice.
-
-The **-i** option allows for the printer driver to request a slice image from this program 
-repeatedly in realtime at any particular z height so that the set of images don't need to be 
-calculated in advance and managed in an array of predefined layer heights.  In this way the 
-system can be configured to generate a new image up to ten times a second so that the 
-vertical resolution of the print will only depend only on the speed of the process, which can 
-be varied during the build itself.
-
-The slicer can take more than one STL file at a time and merge them into the same image.  
-The second STL file, for example, could contain the support material structures so it  
-doesn't need to be merged with the original model (a very non-trivial 
-3D operation).  
-
-The code is self-contained (including the STL reader and PNG writer) and is written in 
-pure Python so it can be run under pypy for greater speed (though it runs pretty quickly at the moment). 
-
-The original source code has been extracted from a larger project called [barmesh](https://bitbucket.org/goatchurch/barmesh) 
-by the author.
-
-# Command line options #
-
-eg:
-  **python stl2png.py -s file.stl --nslices=10**
-(or run as pypy stl2png.py for more speed)
-
+In git bash window
 ```
-Options:
-  -h, --help            show this help message and exit
-  -s FILE, --stl=FILE   Input STL file
-  -o FILE, --output=FILE
-                        Output image name (can contain %d or %f) for multiple
-                        names
-  -t TRANSFORM, --transform=TRANSFORM
-                        Transformation to apply to STL file
-  -q, --quiet           Verbose
-  -w WIDTHPIXELS, --width=WIDTHPIXELS
-                        Bitmap width
-  --height=HEIGHTPIXELS
-                        Bitmap height
-  --extra=EXTRA         Extra space to leave around the model
-  -p POSITION, --position=POSITION
-                        Position
-  -n NSLICES, --nslices=NSLICES
-                        Number of slices to make
-  -z ZLEVELS, --zlevel=ZLEVELS
-                        Zlevel values to slice at
-  -i, --inputs          Wait for lines from input stream of form 'zvalue
-                        [pngfile]\n'
+pip install pyqt5
+pip install git+https://github.com/pyqtgraph/pyqtgraph
+pip install pyOpenGL
+pip install numpy-stl
+pip install opencv-python
 ```
+3. run "python suCAM.py"
 
-# Design #
+### Method
 
-The STL file format is so trivial that both its ascii and binary forms can be parsed in less than 
-50 lines of Python code.  This produces a list of 9-tuples defining the triangles 
-which is read into TriangleBarMesh where the duplicated points and edges are 
-joined to create a connected manifold.  This manifold model knows which two triangles 
-are on either side of each edge -- assuming that the surface is properly closed with no free edges.  
+#### 1. 三角网格模型的处理
+三角网格的处理包括流形检测、打印方向判定、区域划分。在单轴打印时，打印方向暂由手工制定。
 
-For a slice to be made, all the edges that span the z-value of the slice are identified and 
-the point intersection with the horizontal z-plane is calculated.  Since the triangles on either side of 
-each edge are known, the pairs of points that need to be joined to represent the line intersection 
-of the triangle with the z-plane are easily identified.  
+#### 2. 切片
+暂时采用stl2png完成。
+https://bitbucket.org/goatchurch/barmesh/src/1e2782de8433?at=master
 
-There is a list of intersections (the ycuts) between each raster line of constant y in the final bitmap and 
-this set of line slices of triangles (that should form a set of closed contours).  This models the 
-output image before it is written into file using a lightweight implementation of 
-the PNG format in less than 40 lines of Python.  
+#### 3. 切片路径填充
+todo：轮廓向内平移，生成填充路径，变化为连续Fermat's curve 填充。
+https://ac.els-cdn.com/S0010448597000717/1-s2.0-S0010448597000717-main.pdf?_tid=63fe7c5c-f78a-45a4-9f1f-1986e8f51377&acdnat=1543315797_4f2cb569a0acb261dfd7a5dff27d52c3
+奥地利萨尔茨堡萨尔茨堡大学的计算机科学专业的[丁赫尔德](https://www.cosy.sbg.ac.at/~held/held.html)通过曲线多边形的Voronoi图计算偏移曲线。
 
-# Known issues #
+#### 4.适用于5轴与六轴打印的空间填充与路径生成方法
+todo：自动生成层间连续路径。
 
-The bitmap image might be upside down because PNG raster lines start from the top and work towards 
-the bottom in the opposite direction to the conventional y-coordinate direction.  
-Simply flipping the order of the raster lines could be complicated by the fact that the yhi value 
-is varied to keep the aspect ratio of a pixel constant.  
 
-There aren't any working features for controlling the absolute position and scale of the image 
-pixels in relation to the coordinate space of the STL file.  The development of such features 
-are best left to when this program is in use within another system so that it can adhere to its design.
 
-The originally intended optimizations have not been implemented as it was discovered that 
-this simpler version runs pretty fast already, even for code that would conventionally 
-have been written in C++.
-
-# License #
-
-This code is released under [BSD license](http://choosealicense.com/licenses/bsd-2-clause/), 
-which permits you to do anything you like with it except blame me for the consequences.

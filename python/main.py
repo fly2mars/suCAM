@@ -1,4 +1,6 @@
 import sys
+import os
+import cv2
 
 from os import path
 from pyqtgraph.Qt import QtGui, QtCore
@@ -7,12 +9,16 @@ from PyQt5.QtCore import QCoreApplication
 from PyQt5.QtWidgets import (QHBoxLayout, QVBoxLayout, QMainWindow,  QAction, qApp, QWidget, QToolTip, 
     QPushButton, QApplication, QLabel, QTextEdit, QFileDialog)
 
+
 import pyqtgraph as pg
 import pyqtgraph.console
 import numpy as np
+from stl import mesh
+
 import pyqtgraph.metaarray as metaarray
 import pyqtgraph.opengl as gl
-import stlgenerator
+import stl2pngfunc
+import modelInfo
 
 
 class VView(QMainWindow):
@@ -28,12 +34,18 @@ class VView(QMainWindow):
     def initParam(self):
         ## Init members
         self.m_msg = ''
+        self.model_path = ''
         self.widget_arr = {}
+        self.vert = np.zeros(1)
+        self.face = np.zeros(1)
+        self.color = np.zeros(1)
+        self.mesh = []
+        self.mesh_info = []
         return 
     
     def message(self, msg):
-        self.m_msg += msg
-        self.textEdit.setText(self.m_msg)        
+        #self.m_msg += msg
+        self.textEdit.setText(msg)        
         
     def add_button(self, panel, label, width, height):
         button = QtGui.QPushButton(label)
@@ -123,6 +135,7 @@ class VView(QMainWindow):
         self.view.addItem(ax)         
         
         
+        
         layout.addWidget(self.view, 0, 1)
         layout.addWidget(self.view_slice, 0, 2)
         layout.addWidget(self.textEdit, 1, 1, 1, 2)
@@ -143,29 +156,39 @@ class VView(QMainWindow):
             if  ext_file in fname[1]:
                 self.initParam()
                 self.message("Load " + fname[0])
+                self.model_path = fname[0]
             else:
                 return
             
-            sr = stlgenerator.stlreader(path)
+            self.mesh = mesh.Mesh.from_file(fname[0])
+            self.mesh_info = modelInfo.ModelInfo(self.mesh)
+            self.message(self.mesh_info.get_info())
+            verts = self.mesh.vectors.reshape(self.mesh.vectors.shape[0]*3,3)
+            n_face = self.mesh.vectors.shape[0]
+            faces = np.arange(n_face*3)
+            faces = faces.reshape(n_face, 3)
+            colors = [1,0,0,0.3]
+            colors = colors * n_face
+            colors = np.array(colors).reshape(n_face, 4)
             
-        verts = np.array([
-            [0, 0, 0],
-            [2, 0, 0],
-            [1, 2, 0],
-            [1, 1, 1],
-        ])*50
-        faces = np.array([
-            [0, 1, 2],
-            [0, 1, 3],
-            [0, 2, 3],
-            [1, 2, 3]
-        ])
-        colors = np.array([
-            [1, 0, 0, 0.3],
-            [0, 1, 0, 0.3],
-            [0, 0, 1, 0.3],
-            [1, 1, 0, 0.3]
-        ])
+        #verts = np.array([
+            #[0, 0, 0],
+            #[2, 0, 0],
+            #[1, 2, 0],
+            #[1, 1, 1],
+        #])*50
+        #faces = np.array([
+            #[0, 1, 2],
+            #[0, 1, 3],
+            #[0, 2, 3],
+            #[1, 2, 3]
+        #])
+        #colors = np.array([
+            #[1, 0, 0, 0.3],
+            #[0, 1, 0, 0.3],
+            #[0, 0, 1, 0.3],
+            #[1, 1, 0, 0.3]
+        #])
                        
         m1 = gl.GLMeshItem(vertexes=verts, faces=faces, faceColors=colors, smooth=False)
         m1.translate(5, 5, 0)
@@ -173,23 +196,42 @@ class VView(QMainWindow):
         self.view.addItem(m1)                
                 
     def slice(self):
+        curdir = os.getcwd()
+        print(curdir)
+        if(path.isdir("images")):
+            #remove all files in images
+            filelist = [ f for f in os.listdir("./images") if f.endswith(".png") ]
+            
+            for f in filelist:
+                os.remove(os.path.join(curdir+"/images", f))  
+        else:
+            os.mkdir("images")
+        out_path = os.path.join(curdir, "images/slice-%d.png")
+     
+        stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, self.mesh_info.image_height, out_path)
+     
+        print(out_path)
         ## create volume data set for mesh and slice images from
-        shape = (100,100,70)
-        data = pg.gaussianFilter(np.random.normal(size=shape), (4,4,4))
-        data += pg.gaussianFilter(np.random.normal(size=shape), (15,15,15))*15    
-        ## slice out three planes, convert to RGBA for OpenGL texture
-        levels = (-0.08, 0.08)
-        tex1 = pg.makeRGBA(data[shape[0]//2], levels=levels)[0]       # yz plane
-        tex2 = pg.makeRGBA(data[:,shape[1]//2], levels=levels)[0]     # xz plane
-        tex3 = pg.makeRGBA(data[:,:,shape[2]//2], levels=levels)[0]   # xy plane    
-        ## Create three image items from textures, add to view
-        v1 = gl.GLImageItem(tex1)
-        v1.translate(-shape[1]/2, -shape[2]/2, 0)
+        #shape = (100,100,70)
+        #data = pg.gaussianFilter(np.random.normal(size=shape), (4,4,4))
+        #data += pg.gaussianFilter(np.random.normal(size=shape), (15,15,15))*15    
+        ### slice out three planes, convert to RGBA for OpenGL texture
+        #levels = (-0.08, 0.08)
+        #tex1 = pg.makeRGBA(data[shape[0]//2], levels=levels)[0]       # yz plane
+        #tex2 = pg.makeRGBA(data[:,shape[1]//2], levels=levels)[0]     # xz plane
+        #tex3 = pg.makeRGBA(data[:,:,shape[2]//2], levels=levels)[0]   # xy plane    
+        ### Create three image items from textures, add to view
+        #v1 = gl.GLImageItem(tex1)
+        #v1.translate(-shape[1]/2, -shape[2]/2, 0)
+        #print(tex1.shape)
         #v1.rotate(90, 0,0,1)
         #v1.rotate(-90, 0,1,0)
-        
+    
+        im = cv2.imread(out_path % 0)
+        tex1 = cv2.cvtColor(im, cv2.COLOR_BGR2RGBA) 
+        v1 = gl.GLImageItem(tex1)
+        v1.translate(0, 0, 0)        
         self.view_slice.addItem(v1)     
-        
         return
     
     
