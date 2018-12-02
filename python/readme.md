@@ -1,6 +1,6 @@
-#### Introduction
+### Introduction
 多轴打印路径规划系统目的是提供一个独立的，针对多轴打印的空间填充路径生成工具，目前只能提供平面的填充方式
-#### How to use
+### How to use
 基本代码已经上传到GitHub的suCAM目录。
 - 在使用前注意先安装以下工具和python库
 1. install Git bash
