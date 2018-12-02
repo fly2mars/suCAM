@@ -1,5 +1,6 @@
 ### Introduction
-多轴打印路径规划系统目的是提供一个独立的，针对多轴打印的空间填充路径生成工具，目前只能提供平面的填充方式
+多轴打印路径规划系统目的是提供一个独立的，针对多轴打印的空间填充路径生成工具，目前只能提供平面的填充方式。
+
 ### How to use
 基本代码已经上传到GitHub的suCAM目录。
 - 在使用前注意先安装以下工具和python库
@@ -30,11 +31,14 @@ https://bitbucket.org/goatchurch/barmesh/src/1e2782de8433?at=master
 
 #### 3. 切片路径填充
 todo：轮廓向内平移，生成填充路径，变化为连续Fermat's curve 填充。
-https://ac.els-cdn.com/S0010448597000717/1-s2.0-S0010448597000717-main.pdf?_tid=63fe7c5c-f78a-45a4-9f1f-1986e8f51377&acdnat=1543315797_4f2cb569a0acb261dfd7a5dff27d52c3
-奥地利萨尔茨堡萨尔茨堡大学的计算机科学专业的[丁赫尔德](https://www.cosy.sbg.ac.at/~held/held.html)通过曲线多边形的Voronoi图计算偏移曲线。
+
+填充路径生成使用clipper lib 或参考
+奥地利萨尔茨堡萨尔茨堡大学的计算机科学专业的[丁赫尔德](https://www.cosy.sbg.ac.at/~held/held.html)通过曲线多边形的Voronoi图计算偏移曲线的[方法](https://ac.els-cdn.com/S0010448597000717/1-s2.0-S0010448597000717-main.pdf?_tid=63fe7c5c-f78a-45a4-9f1f-1986e8f51377&acdnat=1543315797_4f2cb569a0acb261dfd7a5dff27d52c3)。
+
+生成连续路径，并提高增强纤维路径平滑性的方法参考费马螺线的生成方法。
 
 #### 4.适用于5轴与六轴打印的空间填充与路径生成方法
-todo：自动生成层间连续路径。
+todo：自动生成层间连续路径和g-code。
 
 
 
