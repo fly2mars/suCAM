@@ -91,12 +91,13 @@ class VView(QMainWindow):
         for wt in self.widget_arr.values():            
             lw_layout.addWidget(wt)       
         # Buttons       
-        bt_height = 85
+        bt_height = 75
         bt_width = 200
         load_button       = self.add_button(lw_layout, "LOAD", bt_width, bt_height)
         autolayout_button = self.add_button(lw_layout, "Auto Layout", bt_width, bt_height)
         slice_button      = self.add_button(lw_layout, "SLICE", bt_width, bt_height)
         fill_button       = self.add_button(lw_layout, "FILL", bt_width, bt_height)
+        gcode_button      = self.add_button(lw_layout, "Gen GCode", bt_width, bt_height)
         clear_button      = self.add_button(lw_layout, "CLEAR", bt_width, bt_height)
         quit_button       = self.add_button(lw_layout, "QUIT", bt_width, bt_height)       
 
@@ -105,6 +106,7 @@ class VView(QMainWindow):
         load_button.clicked.connect(self.openStlDialog)
         slice_button.clicked.connect(self.slice)
         fill_button.clicked.connect(self.fill)
+        gcode_button.clicked.connect(self.gen_gcode)
         clear_button.clicked.connect(self.clear)      
 
         # Create right window
@@ -267,16 +269,24 @@ class VView(QMainWindow):
     
     
     def fill(self):
-        n = 51
-        y = np.linspace(-10,10,n)
-        x = np.linspace(-10,10,100)
-        for i in range(n):
-            yi = np.array([y[i]]*100)
-            d = (x**2 + yi**2)**0.5
-            z = 10 * np.cos(d) / (d+1)
-            pts = np.vstack([x,yi,z]).transpose()
-            plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor((i,n*1.3)), width=(i+1)/10., antialias=True)
-            self.view_slice.addItem(plt)        
+        i = self.sl.value()
+        self.message("Show slice {}.".format(i+1))
+        curdir = os.getcwd()
+    
+        im = cv2.imread(self.out_path % i)     
+        # gen fermat's curve
+        # gen 3d point n*3 matrix
+        
+        #n = 51
+        #y = np.linspace(-10,10,n)
+        #x = np.linspace(-10,10,100)
+        #for i in range(n):
+            #yi = np.array([y[i]]*100)
+            #d = (x**2 + yi**2)**0.5
+            #z = 10 * np.cos(d) / (d+1)
+            #pts = np.vstack([x,yi,z]).transpose()
+            #plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor((i,n*1.3)), width=(i+1)/10., antialias=True)
+            #self.view_slice.addItem(plt)        
         return
     
     def show_slice(self):
@@ -293,11 +303,13 @@ class VView(QMainWindow):
         self.view_slice.items = []
         self.view_slice.addItem(v1)
         
+    def gen_gcode(self):
+          
+        return
     def clear(self):
         
         return
         
-
         
 if __name__ == '__main__':
     

@@ -13,11 +13,11 @@ class ModelInfo():
         self.mesh = mesh
         self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
         
-        self.set_pixel_size(0.1)
+        self.set_pixel_size(0.01)
         self.set_image_size()
         
         self.first_layer_thickness = 0.35
-        self.layer_thickness = 1
+        self.layer_thickness = 0.2
         
         return
     
