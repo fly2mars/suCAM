@@ -11,7 +11,7 @@ def pngname(optionoutputfile, i, z):
         return optionoutputfile % z
     return optionoutputfile
 
-def stl2png(stlfile, nlayers, image_width, image_height, outfiles):
+def stl2png(stlfile, nlayers, image_width, image_height, outfiles, func=None):
     tzs = TriZSlice(True)
     tzs.LoadSTLfile(stlfile, transmaps["unit"])
     
@@ -21,6 +21,8 @@ def stl2png(stlfile, nlayers, image_width, image_height, outfiles):
     
     for i in range(nlayers):
         z = tzs.zlo + (tzs.zhi - tzs.zlo)*(i + 0.5)/nlayers
-        tzs.SliceToPNG(z, pngname(outfiles, i, z))   
+        tzs.SliceToPNG(z, pngname(outfiles, i, z))
+        if(func != None):
+            func(i)
     return
           

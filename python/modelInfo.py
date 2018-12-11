@@ -9,18 +9,26 @@ Default unit is milimeter
 '''
 
 class ModelInfo():
-    def __init__(self, mesh):
-        self.mesh = mesh
-        self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
-        
+    def __init__(self, mesh = None):
+        if (mesh != None):
+            self.mesh = mesh
+            self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
+        else:
+            self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz  = 0,0,0,0,0,0
         self.set_pixel_size(0.01)
         self.set_image_size()
         
         self.first_layer_thickness = 0.35
-        self.layer_thickness = 0.2
+        self.layer_thickness = 0.5
         
         return
     
+    def update(self, mesh):
+        self.mesh = mesh
+        self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
+        self.set_pixel_size(0.01)
+        self.set_image_size()        
+        
     def get_info(self):
         info = '''
                Bounding box: ([{}, {}, {}], [{}, {}, {}])
@@ -46,6 +54,7 @@ class ModelInfo():
     def set_pixel_size(self, pix_size = 0.01):
         #default 1 pixel = 0.01 mm 
         self.pixel_size = pix_size
+        self.real_pixel_size = self.pixel_size
         
     def get_pixel_size(self):        
         return self.pixel_size

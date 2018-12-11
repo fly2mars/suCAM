@@ -35,6 +35,7 @@ class VView(QMainWindow):
     def initParam(self):
         ## Init members
         self.m_msg = ''
+        self.m_last_msg = ''
         self.model_path = ''
         self.widget_arr = {}
         self.vert = np.zeros(1)
@@ -44,11 +45,15 @@ class VView(QMainWindow):
         self.mesh_info = []
         self.slices = {}
         self.out_path = ""
+        
+        self.mesh_info = modelInfo.ModelInfo()
         return 
     
     def message(self, msg):
-        #self.m_msg += msg
-        self.textEdit.setText(msg)        
+        self.m_last_msg = self.m_msg
+        self.m_msg = msg
+        self.view_status.setText(msg + '\n' + self.m_last_msg)     
+        self.view_status.repaint()
         
     def add_button(self, panel, label, width, height):
         button = QtGui.QPushButton(label)
@@ -59,8 +64,9 @@ class VView(QMainWindow):
         
     def initUI(self):      
 
-        self.textEdit = QTextEdit()        
-        self.textEdit.setDisabled(True)
+        self.view_status = QTextEdit()        
+        self.view_status.setDisabled(True)
+        self.message(self.mesh_info.get_info())
         self.message("Start from loading a mesh.")
 
         # Create window layout
@@ -84,6 +90,9 @@ class VView(QMainWindow):
         self.widget_arr['fillpattern_label'] = QtGui.QLabel('Filling Pattern')
         self.widget_arr['cb_fillpattern'] = QtGui.QComboBox()           
         
+        self.widget_arr['first_layer_thickness'] = QtGui.QLabel('First Layer Thickness')
+        self.widget_arr['first_layer_thickness_edit'] = QtGui.QLineEdit();
+        #self.widget_arr['first_layer_thickness_edit'].textChanged.connect(lambda : self.mesh_info.first_layer_thickness = self.widget_arr['first_layer_thickness_edit'] .value())
         self.widget_arr['layer_thickness'] = QtGui.QLabel('Layer Thickness')
         self.widget_arr['layer_thickness_edit'] = QtGui.QLineEdit();
    
@@ -133,7 +142,7 @@ class VView(QMainWindow):
         layout.addWidget(self.view, 0, 1)
         layout.addWidget(self.view_slice, 0, 2)
         layout.addWidget(self.sl, 1,1,1,2)
-        layout.addWidget(self.textEdit, 2, 1, 2, 2)
+        layout.addWidget(self.view_status, 2, 1, 2, 2)
         
         
         #self.setGeometry(300, 300, 350, 300)
@@ -186,7 +195,9 @@ class VView(QMainWindow):
             colors = [1,0,0,0.3]
             colors = colors * n_face
             colors = np.array(colors).reshape(n_face, 4)
-            
+        
+        else:
+            return
         #verts = np.array([
             #[0, 0, 0],
             #[2, 0, 0],
@@ -220,23 +231,28 @@ class VView(QMainWindow):
         self.sl.setValue(0)        
                 
     def slice(self):
-        self.slices.clear()
+        if( len(self.mesh) == 0):
+            self.message('Load mesh first!')
+            return
         
-        curdir = os.getcwd()
-        print(curdir)
+        self.slices.clear()
+        curdir = os.getcwd()        
         if(path.isdir("images")):
             #remove all files in images
-            filelist = [ f for f in os.listdir("./images") if f.endswith(".png") ]
-            
+            filelist = [ f for f in os.listdir("./images") if f.endswith(".png") ]            
             for f in filelist:
                 os.remove(os.path.join(curdir+"/images", f))  
         else:
             os.mkdir("images")
         self.out_path = os.path.join(curdir, "images/slice-%d.png")
      
-        stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, self.mesh_info.image_height, self.out_path)
-     
-        print(self.out_path)
+        self.message('Slicing mesh...')
+        
+        stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, 
+                            self.mesh_info.image_height, self.out_path,
+                            func = lambda i: self.message("slicing layer " + str(i))
+                            )
+        self.message('Slicing mesh into ' + self.out_path)
         ## create volume data set for mesh and slice images from
         #shape = (100,100,70)
         #data = pg.gaussianFilter(np.random.normal(size=shape), (4,4,4))
@@ -269,11 +285,16 @@ class VView(QMainWindow):
     
     
     def fill(self):
-        i = self.sl.value()
-        self.message("Show slice {}.".format(i+1))
-        curdir = os.getcwd()
-    
-        im = cv2.imread(self.out_path % i)     
+        try:
+            i = self.sl.value()
+            self.message("Show slice {}.".format(i+1))
+            curdir = os.getcwd()
+            im = cv2.imread(self.out_path % i)        
+        
+        except Exception as e:
+            self.message(str(e))
+                
+        
         # gen fermat's curve
         # gen 3d point n*3 matrix
         
