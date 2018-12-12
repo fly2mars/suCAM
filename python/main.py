@@ -42,18 +42,25 @@ class VView(QMainWindow):
         self.face = np.zeros(1)
         self.color = np.zeros(1)
         self.mesh = []
-        self.mesh_info = []
+        self.mesh_info = modelInfo.ModelInfo()
+       
         self.slices = {}
         self.out_path = ""
         
-        self.mesh_info = modelInfo.ModelInfo()
+        
         return 
     
-    def message(self, msg):
+    def message(self, msg, showLastMsg = True):
         self.m_last_msg = self.m_msg
         self.m_msg = msg
-        self.view_status.setText(msg + '\n' + self.m_last_msg)     
-        self.view_status.repaint()
+        show_msg = ""
+        if(showLastMsg):
+            show_msg = msg + "\n" + self.m_last_msg
+        else:
+            show_msg = msg
+        
+        self.view_status.setText(show_msg)
+        self.repaint()
         
     def add_button(self, panel, label, width, height):
         button = QtGui.QPushButton(label)
@@ -62,6 +69,23 @@ class VView(QMainWindow):
         panel.addWidget(button)
         return button
         
+    def update_variable_first_layer_thickness(self):
+        try:
+            new_value = self.widget_arr['first_layer_thickness_edit'].text()
+            self.mesh_info.first_layer_thickness = float(new_value)
+        except ValueError:
+            return
+        return 
+    def update_variable_layer_thickness(self):
+        try:
+            new_value = self.widget_arr['layer_thickness_edit'].text()
+            self.mesh_info.layer_thickness = float(new_value)
+        except ValueError:
+            return
+        return         
+    def update_ui(self):
+        self.widget_arr['first_layer_thickness_edit'].setText(str(self.mesh_info.first_layer_thickness))
+        self.widget_arr['layer_thickness_edit'].setText      (str(self.mesh_info.layer_thickness))
     def initUI(self):      
 
         self.view_status = QTextEdit()        
@@ -92,9 +116,12 @@ class VView(QMainWindow):
         
         self.widget_arr['first_layer_thickness'] = QtGui.QLabel('First Layer Thickness')
         self.widget_arr['first_layer_thickness_edit'] = QtGui.QLineEdit();
-        #self.widget_arr['first_layer_thickness_edit'].textChanged.connect(lambda : self.mesh_info.first_layer_thickness = self.widget_arr['first_layer_thickness_edit'] .value())
+        self.widget_arr['first_layer_thickness_edit'].textChanged.connect(self.update_variable_first_layer_thickness)
+       
         self.widget_arr['layer_thickness'] = QtGui.QLabel('Layer Thickness')
         self.widget_arr['layer_thickness_edit'] = QtGui.QLineEdit();
+        self.widget_arr['layer_thickness_edit'].textChanged.connect(self.update_variable_layer_thickness)
+        
    
         # Add widgets     
         for wt in self.widget_arr.values():            
@@ -149,6 +176,7 @@ class VView(QMainWindow):
         self.setWindowTitle('suCAM')
         #self.setWindowIcon(QIcon('icon.jpg'))
         self.show()
+        self.update_ui()
 
     def add_3d_printing_region(self):
         xScale = 5
@@ -248,26 +276,14 @@ class VView(QMainWindow):
      
         self.message('Slicing mesh...')
         
-        stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, 
+        str_layers = str(self.mesh_info.get_layers())
+        self.mesh_info.real_pixel_size, self.mesh_info.real_pixel_size, self.gcode_minx, self.gcode_miny = stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, 
                             self.mesh_info.image_height, self.out_path,
-                            func = lambda i: self.message("slicing layer " + str(i))
+                            func = lambda i: self.message("slicing layer " + str(i+1) + "/" + str_layers, False)
                             )
         self.message('Slicing mesh into ' + self.out_path)
-        ## create volume data set for mesh and slice images from
-        #shape = (100,100,70)
-        #data = pg.gaussianFilter(np.random.normal(size=shape), (4,4,4))
-        #data += pg.gaussianFilter(np.random.normal(size=shape), (15,15,15))*15    
-        ### slice out three planes, convert to RGBA for OpenGL texture
-        #levels = (-0.08, 0.08)
-        #tex1 = pg.makeRGBA(data[shape[0]//2], levels=levels)[0]       # yz plane
-        #tex2 = pg.makeRGBA(data[:,shape[1]//2], levels=levels)[0]     # xz plane
-        #tex3 = pg.makeRGBA(data[:,:,shape[2]//2], levels=levels)[0]   # xy plane    
-        ### Create three image items from textures, add to view
-        #v1 = gl.GLImageItem(tex1)
-        #v1.translate(-shape[1]/2, -shape[2]/2, 0)
-        #print(tex1.shape)
-        #v1.rotate(90, 0,0,1)
-        #v1.rotate(-90, 0,1,0)
+        self.message(self.mesh_info.get_info() )
+        
         im = cv2.imread(self.out_path % 0)
         tex1 = cv2.cvtColor(im, cv2.COLOR_BGR2RGBA) 
         v1 = gl.GLImageItem(tex1)
@@ -287,7 +303,7 @@ class VView(QMainWindow):
     def fill(self):
         try:
             i = self.sl.value()
-            self.message("Show slice {}.".format(i+1))
+            self.message("Show slice {}.".format(i+1), False)
             curdir = os.getcwd()
             im = cv2.imread(self.out_path % i)        
         

@@ -59,6 +59,9 @@ class TriZSlice:
         # partitions with interval boundaries down middle of each pixel with extra line each side for convenience
         self.xpixmidsE = Partition1(self.xlo - xpixwid*0.5, self.xhi + xpixwid*0.5, self.xpixels.nparts + 1)
         self.ypixmidsE = Partition1(self.ylo - ypixwid*0.5, self.yhi + ypixwid*0.5, self.ypixels.nparts + 1)
+        
+        # added by Yao
+        return xpixwid, ypixwid, self.xpixels.vs[0], self.ypixels.vs[0]
 
     def CalcPixelYcuts(self, z, tbm):
         tbarpairs = [ ]

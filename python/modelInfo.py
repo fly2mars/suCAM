@@ -15,19 +15,16 @@ class ModelInfo():
             self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
         else:
             self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz  = 0,0,0,0,0,0
-        self.set_pixel_size(0.01)
+        self.set_pixel_size(0.1)
         self.set_image_size()
+        self.gcode_minx = 0       # for record minx and miny from slice result
+        self.gcode_miny = 0
         
         self.first_layer_thickness = 0.35
         self.layer_thickness = 0.5
         
         return
     
-    def update(self, mesh):
-        self.mesh = mesh
-        self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
-        self.set_pixel_size(0.01)
-        self.set_image_size()        
         
     def get_info(self):
         info = '''
@@ -37,10 +34,13 @@ class ModelInfo():
                Slice layers: {}
                First layer thickness: {}
                Layer thickness: {}
+               Real pixel size: [{}, {}]
+               Start position: [{}, {}]
                '''
         info = info.format(self.minx, self.miny, self.minz, self.maxx, self.maxy, self.maxz, 
                     self.image_width, self.image_height, 
-                    self.get_pixel_size(), self.get_layers(), self.first_layer_thickness, self.layer_thickness)
+                    self.get_pixel_size(), self.get_layers(), self.first_layer_thickness, self.layer_thickness,
+                    self.real_pixel_size_x, self.real_pixel_size_y, self.gcode_minx, self.gcode_miny)
         
         return info
         
@@ -51,10 +51,12 @@ class ModelInfo():
         self.image_width  = int(w / self.pixel_size)
         self.image_height = int(h / self.pixel_size)
         
-    def set_pixel_size(self, pix_size = 0.01):
+    def set_pixel_size(self, pix_size = 0.05):
         #default 1 pixel = 0.01 mm 
         self.pixel_size = pix_size
-        self.real_pixel_size = self.pixel_size
+        self.real_pixel_size_x = self.pixel_size
+        self.real_pixel_size_y = self.pixel_size
+        
         
     def get_pixel_size(self):        
         return self.pixel_size
