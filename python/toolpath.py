@@ -8,6 +8,7 @@
 # 2. decomposite filling domain 
 import cv2
 import numpy as np
+import pyclipper
 
 ####################################
 # draw poly line to image #
@@ -24,15 +25,24 @@ def draw_line(point_lists, img, color, line_width=1):
 # https://github.com/greginvm/pyclipper #
 # number of input contour: 0-n #
 #############################################
-import pyclipper
+
 def gen_internal_contour_by_clipper(contours, offset):
     pco = pyclipper.PyclipperOffset()
     pco.AddPaths(contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
     solution = pco.Execute(offset)
     return solution
 
+#############################################
+# Generate iso_contour from by clipper #
+# https://github.com/greginvm/pyclipper #
+# number of input contour: 0-n #
+#############################################
+def gen_internal_contour_tree_by_clipper(contours, offset):
+    pco = pyclipper.PyclipperOffset()
+    pco.AddPaths(contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+    polytree = pco.Execute2(offset)    
+    return polytree
 #######################################################################################
-# Generate hiearchy contours from image #
 # return contours(python list by a tree) #
 # https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
 # This function provides:
@@ -62,6 +72,39 @@ def generate_contours_from_img(imagePath, isRevertImage=False):
         verts = contours[selectIdx]
     return im, contours, areas, hiearchy, selectIdx  
 
+###############################################################################
+# Generate hiearchy tree from contours
+# Return contour tree
+# TODO: recurent add node
+# ref: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/PolyTree/_Body.htm
+# ref: https://stackoverflow.com/questions/32182544/pyclipper-crash-on-trivial-case-terminate-called-throwing-an-exception
+# ref: https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
+###############################################################################
+def generate_hiearchy_tree_from_contours(contours, hiearchy):
+   
+    # find first contour in hiearchy-0
+    root = pyclipper.PyPolyNode()
+    idx = -1
+    for row in hiearchy[0]:
+        Next, Previous, First_Child, Parent = row
+        if Previous == -1 and Parent == -1:
+            idx += 1
+            node = pyclipper.PyPolyNode()
+            node.Parent = contour_tree
+            node.Contour = contours[idx]
+            contour_tree.Childs.append(node)
+            
+    # construct the tree from first contour
+    # TODO: recurent add node
+    for i in range(0, hiearchy.shape[1] - 1):
+        Next, Previous, First_Child, Parent = hiearchy[0][idx]
+        if Next != -1:
+            node = pyclipper.PyPolyNode()
+            node.Parent = root
+            node.Contour = contours[Next]
+    return root
+
+
 #######################################
 # Remove small contours 
 #######################################
@@ -72,6 +115,8 @@ def get_valid_contours(contours, areas, hiearchy, root_contour_index):
             vc.append(contours[i])
             
     return vc
+
+
 ####################################
 # Resample List (N < input_size/2) #
 ####################################
@@ -278,13 +323,14 @@ def resample_curve_by_equal_dist(contour, N, is_open = False):
 
 if __name__ == '__main__':
     offset = -4 # inner offset
-    nSamle = 100 # number of resample vertices
+    nSample = 100 # number of resample vertices
     gContours = []
     
     im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img("E:/git/suCAM/python/images/slice-1.png", True)
     height, width = im.shape[0], im.shape[1]             # picture's size
     img = np.zeros((height, width, 3), np.uint8) + 255   # for demostration
     
+    print(hiearchy)
     vc = get_valid_contours(contours, areas, hiearchy, root_contour_idx) # remove contours that area < 5 (estimated value)
     color_list = generate_RGB_list(int(200/np.abs(offset))) # for demo    
          
@@ -293,7 +339,7 @@ if __name__ == '__main__':
     for idx in range(0, len(vc)):
         c = np.reshape(vc[idx], (vc[idx].shape[0],2))
         #c = resample_list(c, len(c)/1)     
-        c = resample_curve_by_equal_dist( c, nSamle)
+        c = resample_curve_by_equal_dist( c, nSample)
         c = np.flip(c,0)    # reverse index order
         solution.append(c)    
     
@@ -304,11 +350,15 @@ if __name__ == '__main__':
         cv2.circle(img,tuple(solution[0][ii].astype(int)), 4, (0, 0, 255), -1)
     
     gContours.append(solution[0])            ## !!only one inputed contour
+    
+    # Tool path planning problem:
+    # 
+    # pyclipper.PolyTreeToPaths( )
     generate_iso_contour(solution, offset, True)
     
     #inter
     for ii in range(len(gContours)):  
-        print(len(gContours[ii]))
+        #print(len(gContours[ii]))
         gContours[ii] = resample_curve_by_equal_dist( gContours[ii], nSamle)
         
     #connect
