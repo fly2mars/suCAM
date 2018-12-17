@@ -72,16 +72,41 @@ def generate_contours_from_img(imagePath, isRevertImage=False):
         verts = contours[selectIdx]
     return im, contours, areas, hiearchy, selectIdx  
 
+# @cur_node: current node, first input is a empty root node
+# @idx: current index    
+def recusive_add_node(node, idx):
+    global hiearchy
+    global contours
+    
+    if idx >= hiearchy.shape[1]:
+        return
+    Next, Previous, First_Child, Parent = hiearchy[0][idx]    
+    new_node = pyclipper.PyPolyNode()
+    new_node.IsOpen = False
+    new_node.IsHole = False    
+    # add new node
+    if First_Child != -1:
+        new_node.Contour = contours[First_Child]
+        new_node.Parent = node
+        node.Childs.append(new_node)
+        recusive_add_node(new_node, First_Child)
+    if Next != -1:
+            new_node.Contour = contours[Next]
+            new_node.Parent = node.Parent
+            new_node.Parent.Childs.append(new_node)
+            recusive_add_node(new_node, Next)     
+    return
 ###############################################################################
-# Generate hiearchy tree from contours
+# Generate hiearchy tree from contours and hiearchy matrix
 # Return contour tree
 # TODO: recurent add node
 # ref: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/PolyTree/_Body.htm
 # ref: https://stackoverflow.com/questions/32182544/pyclipper-crash-on-trivial-case-terminate-called-throwing-an-exception
 # ref: https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
 ###############################################################################
-def generate_hiearchy_tree_from_contours(contours, hiearchy):
-   
+def convert_hiearchy_to_PyPolyTree():
+    global hiearchy
+    global contours
     # find first contour in hiearchy-0
     root = pyclipper.PyPolyNode()
     idx = -1
@@ -90,20 +115,31 @@ def generate_hiearchy_tree_from_contours(contours, hiearchy):
         if Previous == -1 and Parent == -1:
             idx += 1
             node = pyclipper.PyPolyNode()
-            node.Parent = contour_tree
-            node.Contour = contours[idx]
-            contour_tree.Childs.append(node)
-            
-    # construct the tree from first contour
-    # TODO: recurent add node
-    for i in range(0, hiearchy.shape[1] - 1):
-        Next, Previous, First_Child, Parent = hiearchy[0][idx]
-        if Next != -1:
-            node = pyclipper.PyPolyNode()
             node.Parent = root
-            node.Contour = contours[Next]
+            node.Contour = contours[idx]
+            node.IsOpen = False
+            node.IsHole = False                
+            root.Childs.append(node)
+            recusive_add_node(node, idx)
+            break
     return root
-
+#######################################
+# Traversing a PyPolyTree
+# @root: root of tree
+# @order: 0-deep first, 1-breath first
+# @func: function(contour, Children_list)
+#######################################
+def traversing_PyPolyTree(root, order=0, func=None):
+    if (func != None):
+        func(root.Contour, root.Childs)
+    else:
+        print("I have " + str(len(root.Childs)) + " children.")
+    
+    #TODO: add breath first traversing
+    if (order == 0 ):
+        for n in root.Childs:
+            traversing_PyPolyTree(n, 0, func)        
+    return
 
 #######################################
 # Remove small contours 
@@ -115,18 +151,6 @@ def get_valid_contours(contours, areas, hiearchy, root_contour_index):
             vc.append(contours[i])
             
     return vc
-
-
-####################################
-# Resample List (N < input_size/2) #
-####################################
-def resample_list(input_list, N):
-    input_size = input_list.shape[0]
-    N = N if N < input_size/2 else int(input_size/2)
-    if N > input_size: return input_list
-    Sample = np.linspace(0, input_size, N, dtype = int, endpoint=False)   
-    out_list = input_list[Sample]
-    return out_list   
 
 #######################################
 # Generate N color list
@@ -331,11 +355,13 @@ if __name__ == '__main__':
     img = np.zeros((height, width, 3), np.uint8) + 255   # for demostration
     
     print(hiearchy)
-    vc = get_valid_contours(contours, areas, hiearchy, root_contour_idx) # remove contours that area < 5 (estimated value)
+    #vc = get_valid_contours(contours, areas, hiearchy, root_contour_idx) # remove contours that area < 5 (estimated value)
+    vc = contours
     color_list = generate_RGB_list(int(200/np.abs(offset))) # for demo    
          
     solution = [] # input contours: include outer shape contours and inner hole contours
-                  # Here's a problem: slice regions may be seperated, eg. there are several outer shape contours. 
+                  # Here's a problem: slice regions may be seperated, eg. there are several outer shape contours.
+                  # So I use a contour tree to tracking these contours, like [#debug 1.1] is doing.
     for idx in range(0, len(vc)):
         c = np.reshape(vc[idx], (vc[idx].shape[0],2))
         #c = resample_list(c, len(c)/1)     
@@ -344,7 +370,11 @@ if __name__ == '__main__':
         solution.append(c)    
     
 
-    #debug 
+    #debug 1.1
+    contours = solution
+    contour_tree = convert_hiearchy_to_PyPolyTree()
+    print((len(contour_tree.Childs)) )
+    
     #cv2.circle(img,tuple(solution[0][0].astype(int)), 8, (0, 0, 255), -1)
     for ii in range(len(solution[0])):        
         cv2.circle(img,tuple(solution[0][ii].astype(int)), 4, (0, 0, 255), -1)
@@ -352,14 +382,12 @@ if __name__ == '__main__':
     gContours.append(solution[0])            ## !!only one inputed contour
     
     # Tool path planning problem:
-    # 
-    # pyclipper.PolyTreeToPaths( )
+    # TODO: segment contours first then fill pattern into    
     generate_iso_contour(solution, offset, True)
     
     #inter
-    for ii in range(len(gContours)):  
-        #print(len(gContours[ii]))
-        gContours[ii] = resample_curve_by_equal_dist( gContours[ii], nSamle)
+    for ii in range(len(gContours)):          
+        gContours[ii] = resample_curve_by_equal_dist( gContours[ii], nSample)
         
     #connect
     ## divide contours into two groups(by odd/even)
