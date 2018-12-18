@@ -189,6 +189,21 @@ def generate_iso_contour(contour, offset, is_draw = False):
         
         generate_iso_contour(inter_contour, offset, is_draw)
 
+#############################################
+# Recursively generate iso contour #
+#############################################
+def generate_iso_contour_from_region(contours, offset, is_draw = False):
+    global gContours
+    inter_contour = gen_internal_contour_by_clipper(contour, offset) 
+    N = len(inter_contour)
+    if N != 0:
+        for c in inter_contour:
+            cc = np.array(c)
+            if(is_draw):
+                draw_line(np.vstack([cc, cc[0]]), img, [0,255,0])
+            gContours.append(cc)
+        
+        generate_iso_contour(inter_contour, offset, is_draw)
 def prev_idx(idx, contour):    
     if idx > 0:
         return idx - 1;
@@ -345,12 +360,64 @@ def resample_curve_by_equal_dist(contour, N, is_open = False):
         
     return resample_c
 
+################################################################################
+# for each seperated region on a slice
+#  - fill with connect spiral
+# The seperated region means a region with connected area.
+# @polyTreeNode is used to hold region boundary. Typically, the boundaries 
+#               stored in the current node represent external contours, and 
+#               the contours stored in the child nodes represent the internal 
+#               contours, such as holes. If child nodes have their own children
+#               that will represent new seperated regions. We can deal these cases
+#               by the recursive process.
+# @sId is the id of polyTreeNode, eg. 0(root), 0-1(first child of root),
+#               0-1-2(second gradson of root)
+# @return a dict, @contour_group, each key-value represents a seperate regon KEY 
+#              and its boundary contours. 
+# examples:    contour_group = fill_connected_region(root, '0')
+#              contour_group = fill_connected_region(node, '0-1-1')
+################################################################################
+def fill_connected_region(polyTreeNode, sId = '0'):
+    root = polyTreeNode
+    contour_group = {}  # eg. contour_group[id] holds all inner and outter contours in a seperated region.
+    nDeep = sId.count('-')                        
+    #for root node
+    if (nDeep == 0):
+        iChild = 0
+        for n in polyTreeNode.Childs:
+            cur_id = sId + '-' + str(iChild)
+            cGroup = fill_connected_region(n, cur_id)
+            # merge dict to contour_group
+            contour_group.update(cGroup)   
+            iChild += 1
+    #for layer contains outer contour 
+    if (nDeep % 2 == 1):
+        iChild = 0        
+        contours = []
+        contours.append(polyTreeNode.Contour) #outer contour
+        #for layers contains inner contour
+        for n in polyTreeNode.Childs:
+            cur_id = sId + '-' + str(iChild)
+            contours.append(n.Contour)
+            iChild += 1            
+            #next layer
+            ii = 0
+            for c in n.Childs:
+                    child_id = cur_id + '-' + str(ii)
+                    cGroup = fill_connected_region(n, cur_id)
+                    # merge dict to contour_group
+                    contour_group.update(cGroup)  
+                    ii += 1                
+        contour_group[sId] = contours        
+        
+    return contour_group
 if __name__ == '__main__':
     offset = -4 # inner offset
     nSample = 100 # number of resample vertices
     gContours = []
     
-    im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img("E:/git/suCAM/python/images/slice-1.png", True)
+    #im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img("E:/git/suCAM/python/images/slice-1.png", True)
+    im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img("E:/git/mydoc/Code/python/gen_path/data/honeycomb.png")
     height, width = im.shape[0], im.shape[1]             # picture's size
     img = np.zeros((height, width, 3), np.uint8) + 255   # for demostration
     
@@ -370,14 +437,23 @@ if __name__ == '__main__':
         solution.append(c)    
     
 
-    #debug 1.1
+    #debug 1.1: generate a contour tree for each slice. 
     contours = solution
     contour_tree = convert_hiearchy_to_PyPolyTree()
-    print((len(contour_tree.Childs)) )
-    
-    #cv2.circle(img,tuple(solution[0][0].astype(int)), 8, (0, 0, 255), -1)
-    for ii in range(len(solution[0])):        
-        cv2.circle(img,tuple(solution[0][ii].astype(int)), 4, (0, 0, 255), -1)
+    traversing_PyPolyTree(contour_tree)
+    group_contour = fill_connected_region(contour_tree, '0')
+    for e in group_contour.keys():
+        print(e)
+    iRegion = 0   
+    for v in group_contour.values():
+        iRegion += 10
+        for i in range(len(v)):        
+            for ii in range(len(v[i])):        
+                cv2.circle(img,tuple(v[i][ii].astype(int)), 4, color_list[iRegion], -1)        
+    #for each seprated region
+    #for i in range(len(contour_tree.Childs)):        
+        #for ii in range(len(contour_tree.Childs[i].Contour)):        
+            #cv2.circle(img,tuple(contour_tree.Childs[i].Contour[ii].astype(int)), 4, (0, 0, 255), -1)
     
     gContours.append(solution[0])            ## !!only one inputed contour
     
@@ -419,4 +495,5 @@ if __name__ == '__main__':
     cv2.circle(img,tuple(in_contour_groups[0][out_point_index].astype(int)), 4, (0, 0, 255), -1)
   
     cv2.imshow("Art", img)
+    cv2.imwrite("r:/unorderded.jpg", img)
     cv2.waitKey(0)    

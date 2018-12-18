@@ -36,8 +36,7 @@ class VView(QMainWindow):
         ## Init members
         self.m_msg = ''
         self.m_last_msg = ''
-        self.model_path = ''
-        self.widget_arr = {}
+        self.model_path = ''               
         self.vert = np.zeros(1)
         self.face = np.zeros(1)
         self.color = np.zeros(1)
@@ -86,8 +85,10 @@ class VView(QMainWindow):
     def update_ui(self):
         self.widget_arr['first_layer_thickness_edit'].setText(str(self.mesh_info.first_layer_thickness))
         self.widget_arr['layer_thickness_edit'].setText      (str(self.mesh_info.layer_thickness))
+       
     def initUI(self):      
-
+        
+        self.widget_arr = {} 
         self.view_status = QTextEdit()        
         self.view_status.setDisabled(True)
         self.message(self.mesh_info.get_info())
@@ -222,8 +223,8 @@ class VView(QMainWindow):
             faces = faces.reshape(n_face, 3)
             colors = [1,0,0,0.3]
             colors = colors * n_face
-            colors = np.array(colors).reshape(n_face, 4)
-        
+            colors = np.array(colors).reshape(n_face, 4)            
+            self.update_ui()
         else:
             return
         #verts = np.array([
@@ -328,7 +329,7 @@ class VView(QMainWindow):
     
     def show_slice(self):
         i = self.sl.value()
-        self.message("Show slice {}.".format(i+1))
+        self.message("Show slice {}.".format(i+1), False)
         curdir = os.getcwd()
         
         im = cv2.imread(self.out_path % i)
@@ -344,7 +345,14 @@ class VView(QMainWindow):
           
         return
     def clear(self):
+        self.message(self.mesh_info.get_info())
         
+        str = ''
+        for wt in self.widget_arr.keys():            
+            str += wt + '\n'
+            
+        self.message(str)   
+        self.update_ui()
         return
         
         
