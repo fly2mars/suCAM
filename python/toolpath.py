@@ -11,7 +11,7 @@ import numpy as np
 import pyclipper
 
 ####################################
-# draw poly line to image #
+# draw poly line to image # 
 # point_list is n*2 np.ndarray #
 ####################################
 def draw_line(point_lists, img, color, line_width=1):
@@ -189,21 +189,23 @@ def generate_iso_contour(contour, offset, is_draw = False):
         
         generate_iso_contour(inter_contour, offset, is_draw)
 
-#############################################
-# Recursively generate iso contour #
-#############################################
+###################################################################################
+# Recursively generate iso contour 
+# @contours: outter and inner contours
+# @offset: minus value means inward offset
+# return: build a contour tree for construct connected fermat's curve.           
+# example:
+#         contour_tree = convert_hiearchy_to_PyPolyTree()
+#         group_contour = get_contours_from_each_connected_region(contour_tree, '0')
+#         for cs in group_contours.value():
+#             cij = generate_iso_contour_from_region(cs, -1)
+###################################################################################
 def generate_iso_contour_from_region(contours, offset, is_draw = False):
-    global gContours
-    inter_contour = gen_internal_contour_by_clipper(contour, offset) 
-    N = len(inter_contour)
-    if N != 0:
-        for c in inter_contour:
-            cc = np.array(c)
-            if(is_draw):
-                draw_line(np.vstack([cc, cc[0]]), img, [0,255,0])
-            gContours.append(cc)
-        
-        generate_iso_contour(inter_contour, offset, is_draw)
+    pco = pyclipper.PyclipperOffset()
+    pco.AddPaths(contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+    contour_tree = pco.Execute2(offset)
+    return contour_tree
+   
 def prev_idx(idx, contour):    
     if idx > 0:
         return idx - 1;
@@ -374,10 +376,10 @@ def resample_curve_by_equal_dist(contour, N, is_open = False):
 #               0-1-2(second gradson of root)
 # @return a dict, @contour_group, each key-value represents a seperate regon KEY 
 #              and its boundary contours. 
-# examples:    contour_group = fill_connected_region(root, '0')
-#              contour_group = fill_connected_region(node, '0-1-1')
+# examples:    contour_group = get_contours_from_each_connected_region(root, '0')
+#              contour_group = get_contours_from_each_connected_region(node, '0-1-1')
 ################################################################################
-def fill_connected_region(polyTreeNode, sId = '0'):
+def get_contours_from_each_connected_region(polyTreeNode, sId = '0'):
     root = polyTreeNode
     contour_group = {}  # eg. contour_group[id] holds all inner and outter contours in a seperated region.
     nDeep = sId.count('-')                        
@@ -386,7 +388,7 @@ def fill_connected_region(polyTreeNode, sId = '0'):
         iChild = 0
         for n in polyTreeNode.Childs:
             cur_id = sId + '-' + str(iChild)
-            cGroup = fill_connected_region(n, cur_id)
+            cGroup = get_contours_from_each_connected_region(n, cur_id)
             # merge dict to contour_group
             contour_group.update(cGroup)   
             iChild += 1
@@ -404,13 +406,24 @@ def fill_connected_region(polyTreeNode, sId = '0'):
             ii = 0
             for c in n.Childs:
                     child_id = cur_id + '-' + str(ii)
-                    cGroup = fill_connected_region(n, cur_id)
+                    cGroup = get_contours_from_each_connected_region(n, cur_id)
                     # merge dict to contour_group
                     contour_group.update(cGroup)  
                     ii += 1                
         contour_group[sId] = contours        
         
     return contour_group
+
+################################################################################
+# for each connected region, fill with specified pattern 
+# @contours: outter and inner contours
+# @
+################################################################################
+def fill_connected_region(contour_group, offset):
+    for cs in contour_group.value():
+         generate_iso_contour(solution, offset, True)
+    return
+
 if __name__ == '__main__':
     offset = -4 # inner offset
     nSample = 100 # number of resample vertices
@@ -441,7 +454,7 @@ if __name__ == '__main__':
     contours = solution
     contour_tree = convert_hiearchy_to_PyPolyTree()
     traversing_PyPolyTree(contour_tree)
-    group_contour = fill_connected_region(contour_tree, '0')
+    group_contour = get_contours_from_each_connected_region(contour_tree, '0')
     for e in group_contour.keys():
         print(e)
     iRegion = 0   
@@ -496,4 +509,6 @@ if __name__ == '__main__':
   
     cv2.imshow("Art", img)
     cv2.imwrite("r:/unorderded.jpg", img)
-    cv2.waitKey(0)    
+    cv2.waitKey(0)                                                                                                                                                  
+    
+    
