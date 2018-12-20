@@ -1,15 +1,26 @@
-##################################################
-# This script provides an example for 
-# 1. extract contours from mask image [simulate stl slicing]
-# 2. generate iso-contours [generate filling path  
-# 3. connect iso-contour to fermal spirals
-# Todo:
-# 1. smooth curve 
-# 2. decomposite filling domain 
+'''
+This script provides an example for 
+# 1. extract contours tree from mask image [simulating a layer of slices in STL model].
+# 2. for each seperated region, generate iso-contours.
+# 3. connect iso-contour to fermal spirals.
+example:
+          im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img(filename, isRevertBlackWhite)   
+          traversing_PyPolyTree(contour_tree)
+          group_contour = get_contours_from_each_connected_region(contour_tree, '0')
+          for e in group_contour.values():
+              ePath = gen_isocontours(e)
+              ePath = gen_fermat_curve(ePath)
+          
+In 3D printing path generation,    
+'''                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+
 import cv2
 import numpy as np
 import pyclipper
 
+def main1(filename):
+    return  
+    
 ####################################
 # draw poly line to image # 
 # point_list is n*2 np.ndarray #
@@ -27,6 +38,7 @@ def draw_line(point_lists, img, color, line_width=1):
 #############################################
 
 def gen_internal_contour_by_clipper(contours, offset):
+    
     pco = pyclipper.PyclipperOffset()
     pco.AddPaths(contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
     solution = pco.Execute(offset)
@@ -421,7 +433,7 @@ def get_contours_from_each_connected_region(polyTreeNode, sId = '0'):
 ################################################################################
 def fill_connected_region(contour_group, offset):
     for cs in contour_group.value():
-         generate_iso_contour(solution, offset, True)
+        generate_iso_contour(solution, offset, True)
     return
 
 if __name__ == '__main__':
