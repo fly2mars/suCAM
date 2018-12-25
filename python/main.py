@@ -20,6 +20,7 @@ import pyqtgraph.metaarray as metaarray
 import pyqtgraph.opengl as gl
 import stl2pngfunc
 import modelInfo
+import pathengine
 
 
 class VView(QMainWindow):
@@ -46,6 +47,7 @@ class VView(QMainWindow):
         self.slices = {}
         self.out_path = ""
         
+        self.is_fill_path = False        
         
         return 
     
@@ -306,7 +308,43 @@ class VView(QMainWindow):
             i = self.sl.value()
             self.message("Show slice {}.".format(i+1), False)
             curdir = os.getcwd()
-            im = cv2.imread(self.out_path % i)        
+            filepath = self.out_path % i
+            offset = -6
+            line_width = 1#int(abs(offset)/2)
+            pe = pathengine.pathEngine()    
+            pe.generate_contours_from_img(filepath, True)
+            pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
+            contour_tree = pe.convert_hiearchy_to_PyPolyTree()  
+            group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
+                  
+            #draw boundaries
+            #################################
+            # Generate N color list
+            #################################
+            def generate_RGB_list(N):
+                import colorsys
+                HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
+                RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+                rgb_list = tuple(RGB_tuples)
+                return np.array(rgb_list) * 255   
+            N = 50
+            colors = generate_RGB_list(N)
+            
+            for boundary in group_contour.values():
+                iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
+                idx = 0
+                for cs in iso_contours:
+                    for c in cs:
+                        pathengine.draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
+                    idx += 1
+            
+            cv2.imwrite(filepath, pe.im)
+            tex1 = cv2.cvtColor(pe.im, cv2.COLOR_BGR2RGBA) 
+            v1 = gl.GLImageItem(tex1)
+            
+            v1.translate(0, 0, i * self.mesh_info.layer_thickness)        
+            self.view_slice.items = []
+            self.view_slice.addItem(v1)            
         
         except Exception as e:
             self.message(str(e))
@@ -346,6 +384,7 @@ class VView(QMainWindow):
         return
     def clear(self):
         self.message(self.mesh_info.get_info())
+        self.is_fill_path = False
         
         str = ''
         for wt in self.widget_arr.keys():            

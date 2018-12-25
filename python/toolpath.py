@@ -5,7 +5,9 @@ This script provides an example for
 # 3. connect iso-contour to fermal spirals.
 example:
           im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img(filename, isRevertBlackWhite)   
+          contour_tree = convert_hiearchy_to_PyPolyTree()
           traversing_PyPolyTree(contour_tree)
+        
           group_contour = get_contours_from_each_connected_region(contour_tree, '0')
           for e in group_contour.values():
               ePath = gen_isocontours(e)
@@ -18,9 +20,7 @@ import cv2
 import numpy as np
 import pyclipper
 
-def main1(filename):
-    return  
-    
+
 ####################################
 # draw poly line to image # 
 # point_list is n*2 np.ndarray #
@@ -190,6 +190,8 @@ def resample_list(input_list, N):
 #############################################
 def generate_iso_contour(contour, offset, is_draw = False):
     global gContours
+    global im
+    img = im
     inter_contour = gen_internal_contour_by_clipper(contour, offset) 
     N = len(inter_contour)
     if N != 0:
@@ -436,11 +438,18 @@ def fill_connected_region(contour_group, offset):
         generate_iso_contour(solution, offset, True)
     return
 
-if __name__ == '__main__':
-    offset = -4 # inner offset
-    nSample = 100 # number of resample vertices
-    gContours = []
-    
+
+####################################################################################################################################
+#                                 Main functions list
+####################################################################################################################################
+########################################################################
+# main1 functionis original test
+########################################################################
+def main1():
+    global hiearchy
+    global contours
+    global gContours
+    global im
     #im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img("E:/git/suCAM/python/images/slice-1.png", True)
     im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img("E:/git/mydoc/Code/python/gen_path/data/honeycomb.png")
     height, width = im.shape[0], im.shape[1]             # picture's size
@@ -521,6 +530,33 @@ if __name__ == '__main__':
   
     cv2.imshow("Art", img)
     cv2.imwrite("r:/unorderded.jpg", img)
-    cv2.waitKey(0)                                                                                                                                                  
+    cv2.waitKey(0)               
+    return
+########################################################################
+# main2 function demostrates how extract contours tree
+########################################################################
+def main2(filename):
+    global hiearchy
+    global contours
+    
+    im, contours, areas, hiearchy, root_contour_idx = generate_contours_from_img(filename, isRevertBlackWhite)   
+    
+    contour_tree = convert_hiearchy_to_PyPolyTree() 
+    traversing_PyPolyTree(contour_tree)
+    return  
+
+
+
+
+if __name__ == '__main__':
+    offset = -4 # inner offset
+    nSample = 100 # number of resample vertices
+    gContours = []
+    hiearchy = None
+    contours = []
+    img = None
+ 
+    main1()
+                                                                                                                                          
     
     

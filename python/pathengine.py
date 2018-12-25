@@ -27,7 +27,7 @@ class pathEngine:
         self.areas = None
         self.hiearchy = None  
         self.root_of_region_contour = None
-        self.iso_contours_of_a_region = None
+        self.iso_contours_of_a_region = []
         return
     
     #######################################################################################
@@ -172,30 +172,32 @@ class pathEngine:
                 self.traversing_PyPolyTree(n, func, 0)
         return   
     
-    ##############################################
-    # generate iso contour for a closed region
-    ##############################################
-    def generate_iso_contour(self, input_contours, parent_node, offset):                
-        pco = pyclipper.PyclipperOffset()
-        pco.AddPaths(input_contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-        contour_tree = pco.Execute2(offset)        
-        return contour_tree
+
     ##############################################
     # fill a region with iso contours
     # add all contours into self.iso_contours_of_a_region
+    # return iso_contours_of_a_region, which inclues
+    # an iso contour list, each is represented as c[i,j]
     # example:
-    #          
+    #          pe = pathEngine() 
+    #          pe.generate_contours_from_img(filepath, True)
+    #          contour_tree = pe.convert_hiearchy_to_PyPolyTree()  
+    #          group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
+    #          for cs in group_contour:
+    #              pe.iso_contours_of_a_region.clear()
+    #              iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset)
+    #              ...
     ##############################################
     def fill_closed_region_with_iso_contours(self, input_contours, offset):
-        if(len(input_contours) == 0):
-            return []
-        else:
-            self.iso_contours_of_a_region = self.iso_contours_of_a_region + input_contors
+        iso_contours_of_a_region = []
+        contours = input_contours
+        iso_contours_of_a_region.append(input_contours)
+        while(len(contours) != 0):
             pco = pyclipper.PyclipperOffset()
-            pco.AddPaths(input_contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-            contours = pco.Execute(offset)
-            self.fill_closed_region_with_iso_contours(input_contours, offset)
-        return 
+            pco.AddPaths(contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+            contours = pco.Execute(offset)            
+            iso_contours_of_a_region.append( contours)
+        return iso_contours_of_a_region
 
 ############################################################################################################
 #                         Test Functions                                                                   #    
@@ -254,8 +256,8 @@ def test_region_contour(filepath):
     cv2.waitKey(0)          
 
 def test_fill_with_iso_contour(filepath):
-    offset = -10
-    line_width = int(abs(offset)/2)
+    offset = -6
+    line_width = 1#int(abs(offset)/2)
     pe = pathEngine()    
     pe.generate_contours_from_img(filepath, True)
     pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
@@ -272,25 +274,18 @@ def test_fill_with_iso_contour(filepath):
         RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
         rgb_list = tuple(RGB_tuples)
         return np.array(rgb_list) * 255   
-    colors = generate_RGB_list(len(group_contour.values()))
-    idx = 0
-    for cs in group_contour.values():
-        for c in cs:
-            draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
-        idx += 1
+    N = 50
+    colors = generate_RGB_list(N)
     
-    #draw offset contours
-    def func(contour, children_node):
-        if len(contour) == 0:
-            return        
-        draw_line(np.vstack([contour, contour[0]]), pe.im, (np.random.randint(255),np.random.randint(255),np.random.randint(255)),line_width)
-        return    
-    parent_node = pyclipper.PyPolyNode()  #no used
+    for boundary in group_contour.values():
+        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
+        idx = 0
+        for cs in iso_contours:
+            for c in cs:
+                draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
+            idx += 1
     
-    for cs in group_contour.values():
-        tree = pe.generate_iso_contour(cs, parent_node, offset)
-        pe.traversing_PyPolyTree(tree, func)
-        pe.traversing_PyPolyTree(tree)
+    cv2.imwrite("d:/tmp.png", pe.im)   
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)              
         
