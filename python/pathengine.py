@@ -18,6 +18,7 @@ In 3D printing path generation,
 import cv2
 import numpy as np
 import pyclipper
+import math
 
 class pathEngine:
     def __init__(self):
@@ -212,7 +213,14 @@ def draw_line(point_lists, img, color, line_width=1):
     cv2.polylines(img, [pts], False, color, thickness=line_width, lineType=cv2.LINE_AA)
     #cv2.imshow("Art", img)
     return
-    
+############################
+# compute hausdorff distance
+############################
+from scipy.spatial.distance import directed_hausdorff
+def compute_hausdorff_distance(c1, c2):
+    u = np.array(c1)
+    v = np.array(c2)
+    return directed_hausdorff(u, v)[0]    
 
 def test_tree_visit(filepath):      
     pe = pathEngine()    
@@ -254,7 +262,9 @@ def test_region_contour(filepath):
         idx += 1
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)          
-
+'''
+pe.fill_closed_region_with_iso_contours(boundary, offset) return a 2d array c[i][j]
+'''
 def test_fill_with_iso_contour(filepath):
     offset = -6
     line_width = 1#int(abs(offset)/2)
@@ -288,8 +298,80 @@ def test_fill_with_iso_contour(filepath):
     cv2.imwrite("d:/tmp.png", pe.im)   
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)              
+
+'''
+test hausdorff distanse in  construct graph on iso-contours
+'''
+def test_segment_contours_in_region(filepath):
+    offset = -6
+    line_width = 1 #int(abs(offset)/2)
+    pe = pathEngine()    
+    pe.generate_contours_from_img(filepath, True)
+    pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
+    contour_tree = pe.convert_hiearchy_to_PyPolyTree()  
+    group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
+    
+    #################################
+    # Generate N color list
+    #################################
+    def generate_RGB_list(N):
+        import colorsys
+        HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
+        RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+        rgb_list = tuple(RGB_tuples)
+        return np.array(rgb_list) * 255   
+    N = 50
+    colors = generate_RGB_list(N)
+    
+    ## Compute disance matrix for each two layer
+    ## Build a init graph from boundaries
+    root = []
+    iB = 0
+    for boundary in group_contour.values():
+        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
+        print("Region: " + str(iB))
         
+        root.append(pyclipper.PyPolyNode() )  # root node for each region
+        parent = root[iB]
+        
+        # Add parent node
+        for c1 in iso_contours[0]:
+            node = pyclipper.PyPolyNode()
+            node.Contour = c1
+            node.Parent = parent
+            parent.Childs.append(node)
+            
+        i = 1  # distance to boundary
+        for cs in iso_contours[1:]:   
+            j = 0
+            D = np.random.rand(len(iso_contours[i-1]), len(cs) )  # row: index of parents   column: index of children
+                
+            for c1 in iso_contours[i-1]:# for each c[i][j] # for each parent contour
+                k = 0
+                for c2 in cs:    #compute distance of c[i][j] - c[i+1][j]
+                    D[j][k] = compute_hausdorff_distance(c1, c2) 
+                    draw_line(np.vstack([c1, c1[0]]), pe.im, [0,0,255],line_width) 
+                    k += 1
+                j += 1            
+            print("D(" + str(i-1) + ", " + str(i) + "): " + str(j) + 'x' + str(k))
+            print(D)
+            child_idx = D.argmin(axis = 0)
+            print(child_idx)
+            # find child
+            # for each child
+            #jj = 0
+            #for c in parent.Childs:
+            #    c.Childs.append(child_idx[jj])
+            i += 1
+            if (i == 17): break
+        iB += 1
+    
+   
+    cv2.imshow("Art", pe.im)
+    cv2.waitKey(0)                  
+    
 if __name__ == '__main__':    
     #test_tree_visit("E:/git/suCAM/python/images/slice-1.png")
     #test_region_contour("E:/git/suCAM/python/images/slice-1.png")
-    test_fill_with_iso_contour("E:/git/suCAM/python/images/slice-1.png")
+    #test_fill_with_iso_contour("E:/git/suCAM/python/images/slice-1.png")
+    test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
