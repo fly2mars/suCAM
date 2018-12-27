@@ -221,6 +221,75 @@ class pathEngine:
             contours = pco.Execute(offset)            
             iso_contours_of_a_region.append( contours)
         return iso_contours_of_a_region
+    def prev_idx(self, idx, contour):    
+        if idx > 0:
+            return idx - 1;
+        if idx == 0:
+            return len(contour) -1
+    
+    def next_idx(self, idx, contour):
+        if idx < len(contour)-1:
+            return idx + 1
+        if idx == len(contour) - 1:
+            return 0    
+    ##################################################################################################################
+    # Resample a curve by Roy's method
+    # "http://www.morethantechnical.com/2012/12/07/resampling-smoothing-and-interest-points-of-curves-via-css-in-opencv-w-code/"
+    # @contour: input contour
+    # @size: sample size on the contour 
+    # @is_open: True means openned polyline, False means closed polylien
+    # example:
+    #          c = resample_curve_by_equal_dist( c, nSample)
+    ##################################################################################################################
+    def resample_curve_by_equal_dist(self, contour, size, is_open = False):
+        resample_c = []
+        ## compute length of contour
+        contour_length = 0;   
+        
+        for i in range(len(contour) - 1):
+            d = np.linalg.norm(contour[i+1]-contour[i])
+            contour_length += d
+            
+        if is_open == False:
+            d = np.linalg.norm(contour[0] - contour[-1])
+            contour_length += d
+        
+        resample_size = size  
+        N = int(contour_length / resample_size)
+        if (N < len(contour)):
+            return contour
+        
+        dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
+        cur_id = 0           # for concise
+        resample_c.append(contour[0])
+        
+        nCount = len(contour) - 1
+        if is_open == False:      
+            nCount = len(contour)
+            
+        for i in range(nCount): 
+            next_id = self.next_idx(cur_id, contour)
+            last_dist = np.linalg.norm(contour[next_id]-contour[i])
+            dist += last_dist    #current length
+            if(dist >= resample_size):
+                #put a point on line
+                d_ = last_dist - (dist - resample_size)    #reserve size
+                dir_ = contour[next_id] - contour[cur_id]
+                
+                new_point = contour[cur_id] + d_ * dir_ / np.linalg.norm(dir_)
+                resample_c.append(new_point)
+                
+                dist = last_dist - d_  #remaining dist
+                
+                #if remaining dist to next point needs more sampling...
+                while (dist - resample_size > 1e-3):
+                    new_point = resample_c[-1] + resample_size * dir_ / np.linalg.norm(dir_)
+                    resample_c.append(new_point)                
+                    dist -= resample_size               
+                    
+            cur_id = next_id
+        print(resample_c)    
+        return resample_c    
 
 ############################################################################################################
 #                         Test Functions                                                                   #    
@@ -234,6 +303,17 @@ def draw_line(point_lists, img, color, line_width=1):
     pts = point_lists.reshape((-1,1,2))
     cv2.polylines(img, [pts], False, color, thickness=line_width, lineType=cv2.LINE_AA)
     #cv2.imshow("Art", img)
+    return
+def draw_text(text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, lineType=1):
+    font                   = cv2.FONT_HERSHEY_SIMPLEX
+    fontSize               = [12,-12]
+    offset = bottom_left - np.array(fontSize)*fontScale
+    cv2.putText(img,text, 
+        tuple(offset.astype(int)) , 
+        font, 
+        fontScale,
+        fontColor,
+        lineType) 
     return
 ############################
 # compute hausdorff distance
@@ -317,7 +397,9 @@ def test_fill_with_iso_contour(filepath):
             for c in cs:
                 draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
             idx += 1
-    
+    gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
+    ret, mask = cv2.threshold(gray, 0, 255,cv2.THRESH_BINARY_INV |cv2.THRESH_OTSU)
+    cv2.imshow("mask", mask)
     cv2.imwrite("d:/tmp.png", pe.im)   
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)              
@@ -329,7 +411,7 @@ def test_segment_contours_in_region(filepath):
     offset = -15
     line_width = 1 #int(abs(offset)/2)
     pe = pathEngine()    
-    pe.generate_contours_from_img(filepath, True)
+    pe.generate_contours_from_img(filepath)#, True)
     pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
     contour_tree = pe.convert_hiearchy_to_PyPolyTree()  
     group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
@@ -379,7 +461,7 @@ def test_segment_contours_in_region(filepath):
     colors = generate_RGB_list(N)
     
     # offset
-    dist_th = abs(offset) * 1.1
+    dist_th = abs(offset) * 1.5
     
     ## Compute disance matrix for each two layer
     ## Build a init graph from boundaries
@@ -389,6 +471,10 @@ def test_segment_contours_in_region(filepath):
         msg = "Region {}: has {} boundry contours.".format(iB, len(boundary))
         print(msg)
         
+        i = 0
+        for c in boundary:
+            boundary[i] = pe.resample_curve_by_equal_dist(c, offset)
+            i += 1
         iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)        
         
         # init contour graph for each region
@@ -397,7 +483,7 @@ def test_segment_contours_in_region(filepath):
             for c in cs:
                 num_contours += 1         
         # @R is the relationship matrix
-        R = np.zeros((num_contours, num_contours))        
+        R = np.zeros((num_contours, num_contours)).astype(int)     
         
         # @input: iso_contours c_{i,j}
         i = 0
@@ -405,47 +491,50 @@ def test_segment_contours_in_region(filepath):
             j1 = 0            
             for c1 in cs:                
                 c1_id = get_contour_id(i, j1, iso_contours)
-                draw_line(np.vstack([c1,c1[0]]), pe.im, colors[i], 1)               
+                if c1_id == 2:
+                    print("hi:" + str(c1_id))
+                    draw_line(np.vstack([c1,c1[0]]), pe.im, colors[45], 4)
+                draw_line(np.vstack([c1,c1[0]]), pe.im, colors[i], 1)  
+                draw_text(str(c1_id + 1), c1[0], pe.im, (0,0,255))
                 j2 = 0
                 for c2 in iso_contours[i+1]:
                     dist = np.min(scid.cdist(c1, c2, 'euclidean') )
+                    #print(dist)
                     if(dist < dist_th):
                         c2_id = get_contour_id(i+1, j2, iso_contours)
                         R[c1_id][c2_id] = 1
                     j2 += 1
                 j1 += 1
             i += 1        
-        print(R)            
+        visualize_tree("", R)            
         iB += 1
     #for r in root:
         #pe.traversing_PyPolyTree(r)
         #visualize_tree("", r)
     
-       
+    gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
+    #ret, mask = cv2.threshold(gray, 1, 255,cv2.THRESH_BINARY)
+    pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
+    cv2.imwrite("d:/tmp.png", pe.im) 
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)     
     
 data = ""
 
-def visualize_tree(filepath, root): 
-    global data
-    script = 'GraphPlot[{DATA}, VertexLabeling -> True]'
+def visualize_tree(filepath, matrix): 
+    script = 'GraphPlot[DATA, VertexLabeling -> True, MultiedgeStyle -> True, VertexLabeling -> True, DirectedEdges -> True]'
     
-    def func(node):
-        global data
-        for c in node.Childs: 
-            if node.depth != 0:
-                data = data + '"' + str(node.IsHole) +'"' +  '->' + '"' + str(c.IsHole) + '" ,'
-        return
-    pe = pathEngine()   
-    pe.traversing_PyPolyTree(root, func)   
-    data = data.rstrip(',')
-    print(script.replace('DATA', data))
+    sData = str(matrix)
+    sData = sData.replace('\n', '')
+    sData = sData.replace('[', '{')
+    sData = sData.replace(']', '}')
+    sData = sData.replace(' ', ', ')
+    print(script.replace('DATA', sData))
     
     return    
 if __name__ == '__main__':    
     #test_tree_visit("E:/git/suCAM/python/images/slice-1.png")
     #test_region_contour("E:/git/suCAM/python/images/slice-1.png")
     #test_fill_with_iso_contour("E:/git/suCAM/python/images/slice-1.png")
+    test_segment_contours_in_region("E:/git/mydoc/Code/Python/gen_path/data/gear.png")
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
-    test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
