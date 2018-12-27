@@ -19,6 +19,7 @@ import cv2
 import numpy as np
 import pyclipper
 import math
+import scipy.spatial.distance as scid
 
 class pathEngine:
     def __init__(self):
@@ -162,16 +163,37 @@ class pathEngine:
     #######################################
     def traversing_PyPolyTree(self, root, func=None, order=0):
         if (func != None):            
-            func(root.Contour, root.Childs)
+            func(root)
         else:
             if(root.Parent == None):
                 print("-----")
-            print("I have " + str(len(root.Childs)) + " children.")
+            msg = "Node {} has {} child node".format(root.depth, len(root.Childs))
+            print(msg)
               
         if (order == 0 ):  # deep first
             for n in root.Childs:
                 self.traversing_PyPolyTree(n, func, 0)
         return   
+    
+    #######################################
+    # Get all nodes that depth = nDepth from a PyPolyTree
+    # @depth: depth of node
+    # return a list of node where node.depth = depth    
+    #######################################    
+    def get_nodes_by_layer(self, node, depth):
+        node_list = []        
+        def traverse(node,depth, node_list):
+            for n in node.Childs:
+                if (n.depth == depth):
+                    node_list.append(n)
+                    continue
+                else:
+                    traverse(n,depth,node_list)
+            return
+              
+        traverse(node, depth, node_list)
+        return node_list
+            
     
 
     ##############################################
@@ -216,11 +238,11 @@ def draw_line(point_lists, img, color, line_width=1):
 ############################
 # compute hausdorff distance
 ############################
-from scipy.spatial.distance import directed_hausdorff
+
 def compute_hausdorff_distance(c1, c2):
     u = np.array(c1)
     v = np.array(c2)
-    return directed_hausdorff(u, v)[0]    
+    return scid.directed_hausdorff(u, v)[0]    
 
 def test_tree_visit(filepath):      
     pe = pathEngine()    
@@ -228,7 +250,8 @@ def test_tree_visit(filepath):
     pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
     contour_tree = pe.convert_hiearchy_to_PyPolyTree()
     
-    def func(contour, children_node):
+    def func(node):
+        contour = node.Contour
         if len(contour) == 0:
             return        
         draw_line(np.vstack([contour, contour[0]]), pe.im, (0,255,0),2)        
@@ -303,7 +326,7 @@ def test_fill_with_iso_contour(filepath):
 test hausdorff distanse in  construct graph on iso-contours
 '''
 def test_segment_contours_in_region(filepath):
-    offset = -6
+    offset = -15
     line_width = 1 #int(abs(offset)/2)
     pe = pathEngine()    
     pe.generate_contours_from_img(filepath, True)
@@ -312,6 +335,18 @@ def test_segment_contours_in_region(filepath):
     group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
     
     #################################
+    # Add a child node
+    # I use node.IsHole to save name
+    #################################    
+    def add_node(parent, contour, name=''):
+        n = pyclipper.PyPolyNode()
+        n.Contour = contour
+        n.Parent = parent   
+        n.depth = parent.depth + 1
+        n.IsHole = name
+        parent.Childs.append(n)
+        return n
+    #################################
     # Generate N color list
     #################################
     def generate_RGB_list(N):
@@ -319,59 +354,98 @@ def test_segment_contours_in_region(filepath):
         HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
         RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
         rgb_list = tuple(RGB_tuples)
-        return np.array(rgb_list) * 255   
+        return np.array(rgb_list) * 255  
+    ##################################################################
+    # Get global index for contour(i,j) from iso_contours
+    # Thus we can generate a index matrix for graph visualization in 
+    # Mathematica:
+    #    GraphPlot[{{1, 1, 1, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 1, 0, 1}}, 
+    #               SelfLoopStyle -> True, MultiedgeStyle -> True, 
+    #               VertexLabeling -> True, DirectedEdges -> True]
+    ##################################################################    
+    def get_contour_id(i,j,iso_contours):
+        id = 0  
+        ii = 0
+        jj = 0
+        for cs in iso_contours:
+            if ii == i: break
+            for c in cs:
+                id += 1
+            ii += 1            
+        id += j # indexed from 0
+        return id  
+    
     N = 50
     colors = generate_RGB_list(N)
+    
+    # offset
+    dist_th = abs(offset) * 1.1
     
     ## Compute disance matrix for each two layer
     ## Build a init graph from boundaries
     root = []
     iB = 0
     for boundary in group_contour.values():
-        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
-        print("Region: " + str(iB))
+        msg = "Region {}: has {} boundry contours.".format(iB, len(boundary))
+        print(msg)
         
-        root.append(pyclipper.PyPolyNode() )  # root node for each region
-        parent = root[iB]
+        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)        
         
-        # Add parent node
-        for c1 in iso_contours[0]:
-            node = pyclipper.PyPolyNode()
-            node.Contour = c1
-            node.Parent = parent
-            parent.Childs.append(node)
-            
-        i = 1  # distance to boundary
-        for cs in iso_contours[1:]:   
-            j = 0
-            D = np.random.rand(len(iso_contours[i-1]), len(cs) )  # row: index of parents   column: index of children
-                
-            for c1 in iso_contours[i-1]:# for each c[i][j] # for each parent contour
-                k = 0
-                for c2 in cs:    #compute distance of c[i][j] - c[i+1][j]
-                    D[j][k] = compute_hausdorff_distance(c1, c2) 
-                    draw_line(np.vstack([c1, c1[0]]), pe.im, [0,0,255],line_width) 
-                    k += 1
-                j += 1            
-            print("D(" + str(i-1) + ", " + str(i) + "): " + str(j) + 'x' + str(k))
-            print(D)
-            child_idx = D.argmin(axis = 0)
-            print(child_idx)
-            # find child
-            # for each child
-            #jj = 0
-            #for c in parent.Childs:
-            #    c.Childs.append(child_idx[jj])
-            i += 1
-            if (i == 17): break
+        # init contour graph for each region
+        num_contours = 0
+        for cs in iso_contours:
+            for c in cs:
+                num_contours += 1         
+        # @R is the relationship matrix
+        R = np.zeros((num_contours, num_contours))        
+        
+        # @input: iso_contours c_{i,j}
+        i = 0
+        for cs in iso_contours[:-1]:     # for each group contour[i], where i*offset reprents the distance from boundaries       
+            j1 = 0            
+            for c1 in cs:                
+                c1_id = get_contour_id(i, j1, iso_contours)
+                draw_line(np.vstack([c1,c1[0]]), pe.im, colors[i], 1)               
+                j2 = 0
+                for c2 in iso_contours[i+1]:
+                    dist = np.min(scid.cdist(c1, c2, 'euclidean') )
+                    if(dist < dist_th):
+                        c2_id = get_contour_id(i+1, j2, iso_contours)
+                        R[c1_id][c2_id] = 1
+                    j2 += 1
+                j1 += 1
+            i += 1        
+        print(R)            
         iB += 1
+    #for r in root:
+        #pe.traversing_PyPolyTree(r)
+        #visualize_tree("", r)
     
-   
+       
     cv2.imshow("Art", pe.im)
-    cv2.waitKey(0)                  
+    cv2.waitKey(0)     
     
+data = ""
+
+def visualize_tree(filepath, root): 
+    global data
+    script = 'GraphPlot[{DATA}, VertexLabeling -> True]'
+    
+    def func(node):
+        global data
+        for c in node.Childs: 
+            if node.depth != 0:
+                data = data + '"' + str(node.IsHole) +'"' +  '->' + '"' + str(c.IsHole) + '" ,'
+        return
+    pe = pathEngine()   
+    pe.traversing_PyPolyTree(root, func)   
+    data = data.rstrip(',')
+    print(script.replace('DATA', data))
+    
+    return    
 if __name__ == '__main__':    
     #test_tree_visit("E:/git/suCAM/python/images/slice-1.png")
     #test_region_contour("E:/git/suCAM/python/images/slice-1.png")
     #test_fill_with_iso_contour("E:/git/suCAM/python/images/slice-1.png")
+    #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
     test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
