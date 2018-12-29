@@ -1,14 +1,14 @@
 ### Introduction
-¶àÖá´òÓ¡Â·¾¶¹æ»®ÏµÍ³Ä¿µÄÊÇÌá¹©Ò»¸ö¶ÀÁ¢µÄ£¬Õë¶Ô¶àÖá´òÓ¡µÄ¿Õ¼äÌî³äÂ·¾¶Éú³É¹¤¾ß£¬Ä¿Ç°Ö»ÄÜÌá¹©Æ½ÃæµÄÌî³ä·½Ê½¡£
+å¤šè½´æ‰“å°è·¯å¾„è§„åˆ’ç³»ç»Ÿç›®çš„æ˜¯æä¾›ä¸€ä¸ªç‹¬ç«‹çš„ï¼Œé’ˆå¯¹å¤šè½´æ‰“å°çš„ç©ºé—´å¡«å……è·¯å¾„ç”Ÿæˆå·¥å…·ï¼Œç›®å‰æš‚æ—¶åªèƒ½æä¾›å¹³é¢çš„å¡«å……æ–¹å¼ã€‚
 ![UI](../doc/ui.png)
 ### How to use
-»ù±¾´úÂëÒÑ¾­ÉÏ´«µ½GitHubµÄsuCAMÄ¿Â¼¡£
-- ÔÚÊ¹ÓÃÇ°×¢ÒâÏÈ°²×°ÒÔÏÂ¹¤¾ßºÍpython¿â
+åŸºæœ¬ä»£ç å·²ç»ä¸Šä¼ åˆ°GitHubçš„suCAMç›®å½•ã€‚
+- åœ¨ä½¿ç”¨å‰æ³¨æ„å…ˆå®‰è£…ä»¥ä¸‹å·¥å…·å’Œpythonåº“
 1. install Git bash
 2. install Anaconda
 
-- °²×°ÏàÓ¦¹¤¾ß°ü
-×÷ÎªÌ½Ë÷ÐÔµÄ´úÂë£¬±¾ÏµÍ³½çÃæµÄ¹¹½¨ÒÀÀµÓÚQt£¬PyQtgraph£¬stlµÄ¶ÁÈ¡ÒÀÀµÓÚnumpy-stl,»®·ÖÒÀÀµÓÚstl2png£»Â·¾¶Éú³ÉºÍÓÅ»¯ÒÀÀµÓÚopencv¡¢clipperÊµÏÖ¡£
+- å®‰è£…ç›¸åº”å·¥å…·åŒ…
+ä½œä¸ºæŽ¢ç´¢æ€§çš„ä»£ç ï¼Œæœ¬ç³»ç»Ÿç•Œé¢çš„æž„å»ºä¾èµ–äºŽQtï¼ŒPyQtgraphï¼Œstlçš„è¯»å–ä¾èµ–äºŽnumpy-stl,åˆ’åˆ†ä¾èµ–äºŽstl2pngï¼›è·¯å¾„ç”Ÿæˆå’Œä¼˜åŒ–ä¾èµ–äºŽopencvã€clipperå®žçŽ°ã€‚
 
 In git bash window
 ```
@@ -22,23 +22,20 @@ pip install opencv-python
 
 ### Method
 
-#### 1. Èý½ÇÍø¸ñÄ£ÐÍµÄ´¦Àí
-Èý½ÇÍø¸ñµÄ´¦Àí°üÀ¨Á÷ÐÎ¼ì²â¡¢´òÓ¡·½ÏòÅÐ¶¨¡¢ÇøÓò»®·Ö¡£ÔÚµ¥Öá´òÓ¡Ê±£¬´òÓ¡·½ÏòÔÝÓÉÊÖ¹¤ÖÆ¶¨¡£
+#### 1. ä¸‰è§’ç½‘æ ¼æ¨¡åž‹çš„å¤„ç†
+ä¸‰è§’ç½‘æ ¼çš„å¤„ç†åŒ…æ‹¬æµå½¢æ£€æµ‹ã€æ‰“å°æ–¹å‘åˆ¤å®šã€åŒºåŸŸåˆ’åˆ†ã€‚åœ¨å•è½´æ‰“å°æ—¶ï¼Œæ‰“å°æ–¹å‘æš‚ç”±æ‰‹å·¥åˆ¶å®šã€‚
 
-#### 2. ÇÐÆ¬
-ÔÝÊ±²ÉÓÃstl2pngÍê³É¡£
-https://bitbucket.org/goatchurch/barmesh/src/1e2782de8433?at=master
+#### 2. åˆ‡ç‰‡
+æš‚é‡‡ç”¨[stl2png]https://bitbucket.org/goatchurch/barmesh/src/1e2782de8433?at=masterå®Œæˆã€‚
 
-#### 3. ÇÐÆ¬Â·¾¶Ìî³ä
-todo£ºÂÖÀªÏòÄÚÆ½ÒÆ£¬Éú³ÉÌî³äÂ·¾¶£¬±ä»¯ÎªÁ¬ÐøFermat's curve Ìî³ä¡£
+#### 3. åˆ‡ç‰‡è·¯å¾„å¡«å……
 
-Ìî³äÂ·¾¶Éú³ÉÊ¹ÓÃclipper lib »ò²Î¿¼
-°ÂµØÀûÈø¶û´Ä±¤Èø¶û´Ä±¤´óÑ§µÄ¼ÆËã»ú¿ÆÑ§×¨ÒµµÄ[¶¡ºÕ¶ûµÂ](https://www.cosy.sbg.ac.at/~held/held.html)Í¨¹ýÇúÏß¶à±ßÐÎµÄVoronoiÍ¼¼ÆËãÆ«ÒÆÇúÏßµÄ[·½·¨](https://ac.els-cdn.com/S0010448597000717/1-s2.0-S0010448597000717-main.pdf?_tid=63fe7c5c-f78a-45a4-9f1f-1986e8f51377&acdnat=1543315797_4f2cb569a0acb261dfd7a5dff27d52c3)¡£
+å¡«å……è·¯å¾„ç”Ÿæˆä½¿ç”¨clipper lib æˆ–å‚è€ƒå¥¥åœ°åˆ©è¨å°”èŒ¨å ¡è¨å°”èŒ¨å ¡å¤§å­¦çš„è®¡ç®—æœºç§‘å­¦ä¸“ä¸šçš„[ä¸èµ«å°”å¾·](https://www.cosy.sbg.ac.at/~held/held.html)æå‡ºçš„é€šè¿‡æ›²çº¿å¤šè¾¹å½¢çš„Voronoiå›¾è®¡ç®—åç§»æ›²çº¿çš„[æ–¹æ³•](https://ac.els-cdn.com/S0010448597000717/1-s2.0-S0010448597000717-main.pdf?_tid=63fe7c5c-f78a-45a4-9f1f-1986e8f51377&acdnat=1543315797_4f2cb569a0acb261dfd7a5dff27d52c3)ã€‚
 
-Éú³ÉÁ¬ÐøÂ·¾¶£¬²¢Ìá¸ßÔöÇ¿ÏËÎ¬Â·¾¶Æ½»¬ÐÔµÄ·½·¨²Î¿¼·ÑÂíÂÝÏßµÄÉú³É·½·¨¡£
+è¿žç»­è·¯å¾„ç”Ÿæˆå‚è€ƒè´¹é©¬èžºçº¿çš„ç”Ÿæˆæ–¹æ³•å‚è€ƒ[Zhao et al.](http://irc.cs.sdu.edu.cn/CFS/)çš„å·¥ä½œã€‚
 
-#### 4.ÊÊÓÃÓÚ5ÖáÓëÁùÖá´òÓ¡µÄ¿Õ¼äÌî³äÓëÂ·¾¶Éú³É·½·¨
-todo£º×Ô¶¯Éú³É²ã¼äÁ¬ÐøÂ·¾¶ºÍg-code¡£
+#### 4.é€‚ç”¨äºŽ5è½´ä¸Žå…­è½´æ‰“å°çš„ç©ºé—´å¡«å……ä¸Žè·¯å¾„ç”Ÿæˆæ–¹æ³•
+todoï¼šè‡ªåŠ¨ç”Ÿæˆå±‚é—´è¿žç»­è·¯å¾„å’Œg-codeã€‚
 
 
 
