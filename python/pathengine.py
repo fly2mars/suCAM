@@ -6,6 +6,7 @@ This module provides functions about filling path generation
 example:
           pe = pathEngine()
           im, contours, areas, hiearchy, root_contour_idx = pe.generate_contours_from_img(filename, isRevertBlackWhite)  
+          contour_tree = pe.convert_hiearchy_to_PyPolyTree()
           pe.traversing_PyPolyTree(contour_tree)
           group_contour = get_contours_from_each_connected_region(contour_tree, '0')
           for e in group_contour.values():
@@ -21,16 +22,85 @@ import pyclipper
 import math
 import scipy.spatial.distance as scid
 import suGraph
-
+from scipy.signal import savgol_filter
 '''
-Hold path info for 2D slice
+Hold path info and visualization functions for 2D slice
+@contour_tree:   
 '''
 class suPath2D():
     def __init__(self):        
-        self.contour_tree     = None
-        self.group_boundary   = []
-        self.group_isocontour = []
+        self.contour_tree      = None
+        self.group_boundary    = []
+        self.group_isocontours = []  #containts iso contours list
+        self.group_isocontours_2D = []
+        self.group_relationship_matrix = []
+        
         return
+    ##################################################################
+    # Get a 1D global index from iso_contours list contour(i,j), where
+    # i is the distance to the boundary, there are many contours(j=0...n-1).  
+    # Thus we can generate a index matrix for building a graph that can
+    # be visualized in different tools.
+    # Mathematica:
+    #    GraphPlot[{{1, 1, 1, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 1, 0, 1}},
+    #               SelfLoopStyle -> True, MultiedgeStyle -> True,
+    #               VertexLabeling -> True, DirectedEdges -> True]
+    ##################################################################   
+    def get_contour_id(self,i,j,iso_contours):
+        id = 0 
+        ii = 0
+        for cs in iso_contours:
+            if ii == i: break
+            for c in cs:
+                id += 1
+            ii += 1           
+        id += j # indexed from 0
+        return id   
+    def prev_idx(self, idx, contour):    
+        if idx > 0:
+            return idx - 1;
+        if idx == 0:
+            return len(contour) -1
+    
+    def next_idx(self, idx, contour):
+        if idx < len(contour)-1:
+            return idx + 1
+        if idx == len(contour) - 1:
+            return 0    
+    ####################################
+    # draw poly line to image #
+    # point_list is n*2 np.ndarray #
+    ####################################
+    def draw_line(self, point_lists, img, color, line_width=1, point_size=0):
+        point_lists = point_lists.astype(int)
+        pts = point_lists.reshape((-1,1,2))
+        cv2.polylines(img, [pts], False, color, thickness=line_width, lineType=cv2.LINE_AA)
+        #cv2.imshow("Art", img)
+        if point_size != 0:
+            for p in point_lists:
+                cv2.circle(img, tuple(p), point_size, color)   
+        return
+    def draw_text(self, text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, lineType=1):
+        font                   = cv2.FONT_HERSHEY_SIMPLEX
+        fontSize               = [12,-12]
+        offset = bottom_left - np.array(fontSize)*fontScale
+        cv2.putText(img,text,
+            tuple(offset.astype(int)) ,
+            font,
+            fontScale,
+            fontColor,
+            lineType)
+        return
+    #################################
+    # Generate N color list
+    #################################
+    def generate_RGB_list(self, N):
+        import colorsys
+        HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
+        RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+        rgb_list = tuple(RGB_tuples)
+        return np.array(rgb_list) * 255   
+    
     
 class pathEngine:
     def __init__(self):
@@ -268,8 +338,8 @@ class pathEngine:
        
         resample_size = size 
         N = int(contour_length / resample_size)
-        if (N < len(contour)):
-            return contour
+        #if (N < len(contour)):
+        #    return contour
        
         dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
         cur_id = 0           # for concise
@@ -300,8 +370,126 @@ class pathEngine:
                     dist -= resample_size              
                    
             cur_id = next_id
-        #print(resample_c)   
-        return  np.asarray(resample_c)   
+        #print(resample_c)  
+        return  np.asarray(resample_c)
+   
+    #######################################
+    # find nearest index of point in a contour
+    # @in: point value(not index), a contour
+    # @out: the index of a nearest point
+    #####################################
+    def find_nearest_point_idx(self, point, contour):
+        idx = -1
+        distance = float("inf")   
+        for i in range(0, len(contour)-1):        
+            d = np.linalg.norm(point-contour[i])
+            if d < distance:
+                distance = d
+                idx = i
+        return idx   
+    ##########################################################################
+    #find an index of point from end, with distance larger than T
+    #@in: current index of point, current contour, 
+    #@in: T is a distance can be set to offset or offset/2 or 2 * offset
+    ##########################################################################
+    def find_point_index_by_distance(self, cur_point_index, cur_contour, T):
+        T = abs(T)
+        start_point = cur_contour[cur_point_index]
+        idx_end_point = self.prev_idx(cur_point_index, cur_contour)
+        
+        end_point=[]        
+        for ii in range(0,len(cur_contour)-1):
+            end_point = cur_contour[idx_end_point]
+            distance=np.linalg.norm(start_point-end_point)            
+            if distance > T:           
+                break
+            else:           
+                idx_end_point = self.prev_idx(idx_end_point, cur_contour)  
+        return idx_end_point    
+    ##############################################################
+    # @in: iso contours, index of start point, offset
+    # @out: a single poly
+    # If you want connect in then connect out,
+    # you can divide contours into two sets, and run it twice,
+    # then connect them.
+    ##############################################################
+    def contour2spiral(self, contours, idx_start_point, offset):
+        offset = abs(offset)
+        cc = [] # contour for return
+        N = len(contours)
+        for i in range(N):
+            contour1 = contours[i]        
+            
+            ## find end point(e1)
+            idx_end_point = self.find_point_index_by_distance(idx_start_point, contour1, 2*offset)
+            end_point = contour1[idx_end_point]
+            
+            # add contour segment to cc
+            idx = idx_start_point
+            while idx != idx_end_point:
+                cc.append(contour1[idx])
+                idx = self.next_idx(idx, contour1)   
+            
+            if(i == N-1): 
+                break
+            
+            ## find s2   
+            idx_start_point2 = self.find_nearest_point_idx(end_point, contours[i+1])         
+            
+            idx_start_point = idx_start_point2   
+            
+            
+        return cc     
+    
+    def connect_spiral(self, first_spiral, second_spiral, is_flip=True):
+        s = []
+        if is_flip:
+            second_spiral = np.flip(second_spiral, 0)
+            
+        for i in range(len(first_spiral)):
+            s.append(first_spiral[i])                 
+        for i in range(len(second_spiral)):
+            s.append(second_spiral[i])
+        return s
+    
+
+    def smooth_curve_by_savgol(self, c, filter_width=5, polynomial_order=1):
+        N = 10
+        c = np.array(c)
+        y = c[:, 1]
+        x = c[:, 0]
+        x2 = savgol_filter(x, filter_width, polynomial_order)
+        y2 = savgol_filter(y, filter_width, polynomial_order)
+        c = np.transpose([x2,y2])
+        return c    
+    # @iso_contours: input iso contours of a pocket
+    # return a spiral contour
+    def build_spiral_for_pocket(self, iso_contours):
+        ## divide contours into two groups(by odd/even)
+        if (len(iso_contours) == 1):
+            return iso_contours[0]        
+        in_contour_groups = []
+        out_contour_groups = []
+        for idx in range(len(iso_contours)):
+            if (idx % 2 == 0):
+                in_contour_groups.append(iso_contours[idx])
+            else:
+                out_contour_groups.append(iso_contours[idx])
+    
+    
+        cc_in = self.contour2spiral(in_contour_groups, 0, self.offset )
+        output_index = self.find_nearest_point_idx(in_contour_groups[0][0], out_contour_groups[0]) 
+    
+        cc_out = self.contour2spiral(out_contour_groups, output_index, self.offset )
+    
+        ## connect two spiral
+        fspiral = self.connect_spiral(cc_in, cc_out)
+        ## set out point
+        out_point_index = self.find_point_index_by_distance(0, in_contour_groups[0], self.offset)
+        fspiral.append(in_contour_groups[0][out_point_index])   
+        ## smooth withe filter size 3, order 1
+        fspiral = self.smooth_curve_by_savgol(fspiral, 3, 1)    
+        return fspiral    
 
 ############################################################################################################
 #                         Test Functions                                                                   #   
@@ -330,9 +518,6 @@ def draw_text(text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, li
         fontColor,
         lineType)
     return
-
-
-
 
 
            
@@ -389,11 +574,11 @@ def test_region_contour(filepath):
 '''
 pe.fill_closed_region_with_iso_contours(boundary, offset) return a 2d array c[i][j]
 '''
-def test_fill_with_iso_contour(filepath):
+def test_fill_with_iso_contour(filepath, reverseImage = True):
     offset = -6
     line_width = 1#int(abs(offset)/2)
     pe = pathEngine()   
-    pe.generate_contours_from_img(filepath, True)
+    pe.generate_contours_from_img(filepath, reverseImage)
     pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
     contour_tree = pe.convert_hiearchy_to_PyPolyTree() 
     group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
@@ -411,7 +596,7 @@ def test_fill_with_iso_contour(filepath):
     N = 50
     colors = generate_RGB_list(N)
    
-    for boundary in path2d.group_boundary.values():
+    for boundary in group_contour.values():
         iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
         idx = 0
         for cs in iso_contours:
@@ -425,159 +610,12 @@ def test_fill_with_iso_contour(filepath):
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)             
 
-'''
-test hausdorff distanse in  construct graph on iso-contours
-'''
-def test_segment_contours_in_region(filepath):
-    path2d = suPath2D()
-      
-    offset = -14
-    line_width = 1 #int(abs(offset)/2)
-    pe = pathEngine()   
-    pe.generate_contours_from_img(filepath, True)
-    pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
-    contour_tree = pe.convert_hiearchy_to_PyPolyTree() 
-    path2d.group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')
-   
-    #################################
-    # Add a child node
-    # I use node.IsHole to save name
-    #################################   
-    def add_node(parent, contour, name=''):
-        n = pyclipper.PyPolyNode()
-        n.Contour = contour
-        n.Parent = parent  
-        n.depth = parent.depth + 1
-        n.IsHole = name
-        parent.Childs.append(n)
-        return n
-    #################################
-    # Generate N color list
-    #################################
-    def generate_RGB_list(N):
-        import colorsys
-        HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
-        RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
-        rgb_list = tuple(RGB_tuples)
-        return np.array(rgb_list) * 255 
-    ##################################################################
-    # Get global index for contour(i,j) from iso_contours
-    # Thus we can generate a index matrix for graph visualization in
-    # Mathematica:
-    #    GraphPlot[{{1, 1, 1, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 1, 0, 1}},
-    #               SelfLoopStyle -> True, MultiedgeStyle -> True,
-    #               VertexLabeling -> True, DirectedEdges -> True]
-    ##################################################################   
-    def get_contour_id(i,j,iso_contours):
-        id = 0 
-        ii = 0
-        jj = 0
-        for cs in iso_contours:
-            if ii == i: break
-            for c in cs:
-                id += 1
-            ii += 1           
-        id += j # indexed from 0
-        return id 
-   
-   
-    color = (255,0,0)
-   
-    # offset
-    dist_th = abs(offset) * 1.2
-   
-    ## Compute disance matrix for each two layer
-    ## Build a init graph from boundaries
-    root = []
-    iB = 0
-    for boundary in path2d.group_boundary.values():
-        msg = "Region {}: has {} boundry contours.".format(iB, len(boundary))
-        print(msg)
-       
-        #i = 0
-        #for c in boundary:
-            #boundary[i] = pe.resample_curve_by_equal_dist(c, offset)
-            #i += 1
-        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)       
-       
-        # init contour graph for each region
-        num_contours = 0
-        for cs in iso_contours:
-            for c in cs:
-                num_contours += 1   
-       
-        num_contours = 0       
-        iso_contours_2D = []
-        for i in range(len(iso_contours)):
-            for j in range(len(iso_contours[i])):
-                # resample and convert to np.array
-                iso_contours[i][j] = pe.resample_curve_by_equal_dist(iso_contours[i][j], abs(offset/2))            
-                iso_contours_2D.append(iso_contours[i][j])
-                num_contours += 1         
-        # @R is the relationship matrix
-        R = np.zeros((num_contours, num_contours)).astype(int)    
-       
 
-        # @input: iso_contours c_{i,j}
-        i = 0
-        for cs in iso_contours[:-1]:     # for each group contour[i], where i*offset reprents the distance from boundaries      
-            j1 = 0           
-            for c1 in cs:               
-                c1_id = get_contour_id(i, j1, iso_contours)
-               
-                draw_line(np.vstack([c1,c1[0]]), pe.im, color, 1, 2) 
-                draw_text(str(c1_id + 1), c1[0], pe.im, (0,0,255))
-                j2 = 0
-                for c2 in iso_contours[i+1]:
-                    dist = scid.cdist(c1, c2, 'euclidean')
-                    min_dist = np.min(dist)
-                    #print(dist)
-                    if(min_dist < dist_th):
-                        c2_id = get_contour_id(i+1, j2, iso_contours)
-                        R[c1_id][c2_id] = 1
-                        #debug
-                        gId = np.argmin(dist)
-                        pid_c1 = int(gId / dist.shape[1])
-                        pid_c2 = gId - dist.shape[1] * pid_c1
-                        draw_line(np.asarray([c1[pid_c1], c2[pid_c2]]), pe.im, (0,0,255), 1,0)
-                       
-                    j2 += 1
-                j1 += 1
-            i += 1       
-        #visualize
-        graph = suGraph.suGraph()
-        #graph.init_from_matrix(R)       
-        pockets = graph.classify_nodes_by_type(R)
-        
-        N = len(pockets)
-        colors = generate_RGB_list(N)        
-        p_id = 0       
-        for p in pockets:
-            print(np.array(p) + 1)
-            for idx in p:
-                draw_line(np.vstack([iso_contours_2D[idx],iso_contours_2D[idx][0]]), pe.im, colors[p_id], 3) 
-            p_id += 1            
-        iB += 1
-        
-        graph.to_Mathematica("")
-   
-   
-    gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
-    #ret, mask = cv2.threshold(gray, 1, 255,cv2.THRESH_BINARY)
-    pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
-    cv2.imwrite("d:/tmp.png", pe.im)
-    cv2.imshow("Art", pe.im)
-    cv2.waitKey(0)    
-   
-data = ""
-
-def visualize_tree(filepath, matrix):
-   
-   
-    return   
+  
 if __name__ == '__main__':   
     #test_tree_visit("E:/git/suCAM/python/images/slice-1.png")
     #test_region_contour("E:/git/suCAM/python/images/slice-1.png")
-    #test_fill_with_iso_contour("E:/git/suCAM/python/images/slice-1.png")
+    test_fill_with_iso_contour("E:/git/suCAM/python/images/slice-1.png")
     #test_segment_contours_in_region("E:/git/mydoc/Code/Python/gen_path/data/sample.png")
-    test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
+    #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
+    
