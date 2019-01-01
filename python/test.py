@@ -166,14 +166,24 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
         print(pockets)
         
         # gen spiral for each pocket
+        spirals = []
         for p in pockets:
             cs = []
             for c_id in p:
                 cs.append(iso_contours_2D[c_id])
             if(len(cs) !=0):
-                spiral = pe.build_spiral_for_pocket(cs)
-                path2d.draw_line(spiral, pe.im, [255,0.0,0],1)
+                spiral = pe.build_spiral_for_pocket(cs)  
+                spirals.append(spiral)                
+               
+        for p_id in range(len(pockets)):
+            #node = graph.get_node(where_pocket_id = p_id)
+            #if node.is_typeII():
+                #connect_spiral(node_pre.pocket_id, p_id)
+                #connect_spiral(node_next.pocket_id, p_id)
+            path2d.draw_line(spirals[p_id], pe.im, [255,0.0,0],1)
+                    
         
+        graph.to_Mathematica("")
         path2d.group_isocontours.append(iso_contours)
         path2d.group_isocontours_2D.append(iso_contours_2D)
         path2d.group_relationship_matrix.append(R)
@@ -190,4 +200,4 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
 if __name__ == '__main__':  
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -4, False)
+    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
