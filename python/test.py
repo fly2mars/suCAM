@@ -119,7 +119,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     
     ## Build a init graph from boundaries
     # contour distance threshold between adjacent layers
-    dist_th = abs(offset) * 1.2
+    dist_th = abs(offset) * 1.05
 
     iB = 0
     for boundary in path2d.group_boundary.values():
@@ -166,7 +166,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
         graph = suGraph.suGraph()
         #graph.init_from_matrix(R)  
         #graph.simplify(map_ij)   
-        pockets = graph.classify_nodes_by_type(R)  
+        pockets = graph.classify_nodes_by_type(R,map_ij)  
         #graph.to_Mathematica("")
         print(pockets)
         
@@ -176,7 +176,8 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
             cs = []
             for c_id in p:
                 cs.append(iso_contours_2D[c_id])
-                pe.path2d.draw_text(str(c_id + 1), iso_contours_2D[c_id][0], pe.im)
+                if (c_id == 37):
+                    pe.path2d.draw_text(str(c_id + 1), iso_contours_2D[c_id][0], pe.im)
             if(len(cs) !=0):
                 spiral = pe.build_spiral_for_pocket(cs)  
                 spirals.append(spiral)                
@@ -214,5 +215,5 @@ if __name__ == '__main__':
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/two-circle.png", -10, False)
-    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -18, False)
+    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -4, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")

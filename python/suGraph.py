@@ -37,9 +37,20 @@ class suGraph():
     # simplify graph with info of contour layer
     def simplify_with_layer_info(self, map_ij):
         for i in range(len(self.nodes) ):
-            for pre in self.nodes[i].pre():
+            remove = []
+            for pre in self.nodes[i].pre:
                 pre_node = self.nodes[pre]
-                #if(map_ij[pre][0] == map_ij[i][0]:
+                if(map_ij[pre][0] == map_ij[i][0]):
+                    remove.append(pre)
+                    pre_node.next.remove(i)
+            self.nodes[i].pre = [x for x in self.nodes[i].pre if x not in remove]
+            remove = []
+            for next in self.nodes[i].next:
+                next_node = self.nodes[next]
+                if(map_ij[next][0] == map_ij[i][0]):
+                    remove.append(next)
+                    next_node.pre.remove(i)
+            self.nodes[i].next = [x for x in self.nodes[i].next if x not in remove]            
                    
                    
         return
@@ -48,8 +59,10 @@ class suGraph():
         return
     # @root_nodes: index list of all root nodes
     # Note: this algorithm can search classes from any node
-    def classify_nodes_by_type(self, matrix):
+    def classify_nodes_by_type(self, matrix, map_ij = []):
         self.init_from_matrix(matrix)
+        if(len(map_ij) != 0):
+            self.simplify_with_layer_info(map_ij)
         regions = []   #contour id groups
         pocket = []
         nodes_to_search = [0]   # outter contour
