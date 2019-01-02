@@ -101,7 +101,9 @@ def test_segment_contours_in_region(filepath):
    
 
 
-def get_spiral_from_contours(contours):
+def connect_spiral(fc1, fc2):
+    # from fc1 point 1
+    # find nearest 
     
     return
 
@@ -128,6 +130,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
         # init contour graph for each region
         num_contours = 0       
         iso_contours_2D = []
+        map_ij = []
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
                 # resample and convert to np.array
@@ -137,6 +140,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
                 else:
                     iso_contours_2D.append(iso_contours[i][j])                
                 
+                map_ij.append([i,j])
                 num_contours += 1         
         # @R is the relationship matrix
         R = np.zeros((num_contours, num_contours)).astype(int)    
@@ -160,7 +164,8 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
             i += 1       
         #visualize
         graph = suGraph.suGraph()
-        #graph.init_from_matrix(R)       
+        #graph.init_from_matrix(R)  
+        #graph.simplify(map_ij)   
         pockets = graph.classify_nodes_by_type(R)  
         #graph.to_Mathematica("")
         print(pockets)
@@ -171,16 +176,23 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
             cs = []
             for c_id in p:
                 cs.append(iso_contours_2D[c_id])
+                pe.path2d.draw_text(str(c_id + 1), iso_contours_2D[c_id][0], pe.im)
             if(len(cs) !=0):
                 spiral = pe.build_spiral_for_pocket(cs)  
                 spirals.append(spiral)                
                
+        
         for p_id in range(len(pockets)):
             #node = graph.get_node(where_pocket_id = p_id)
             #if node.is_typeII():
                 #connect_spiral(node_pre.pocket_id, p_id)
                 #connect_spiral(node_next.pocket_id, p_id)
-            path2d.draw_line(spirals[p_id], pe.im, [255,0.0,0],1)
+            if len(pockets[p_id]) == 1:
+                color = [0,0,255]
+            else:
+                color = [255,0,0]
+            path2d.draw_line(spirals[p_id], pe.im, color,1)
+            
                     
         
         graph.to_Mathematica("")
@@ -189,6 +201,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
         path2d.group_relationship_matrix.append(R)
         iB += 1
     
+        graph.connect_node_by_spiral(spirals)
    
         
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
@@ -200,4 +213,6 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
 if __name__ == '__main__':  
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
+    #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/two-circle.png", -10, False)
+    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -18, False)
+    #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
