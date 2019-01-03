@@ -33,9 +33,20 @@ class suGraph():
             node.next += list(ids.reshape(len(ids)) )
             ids = np.argwhere(matrix.T[i] == 1)
             node.pre += list(ids.reshape(len(ids)) )
-            self.nodes.append(node)                 
+            self.nodes.append(node)   
+    # construct self.matrix from simplified graph
+    def get_matrix_from_graph(self):        
+        n = len(self.nodes)
+        M = np.zeros([n,n])
+        for i in range(n):
+            node = self.nodes[i]
+            M[i][node.next] = 1
+        return M.astype(int)
+
     # simplify graph with info of contour layer
     def simplify_with_layer_info(self, map_ij):
+        # if both c1(i,j) and c2(i,j) have the same layer number i, 
+        # we don't construct a parent-child relationship between them.
         for i in range(len(self.nodes) ):
             remove = []
             for pre in self.nodes[i].pre:
@@ -52,7 +63,14 @@ class suGraph():
                     next_node.pre.remove(i)
             self.nodes[i].next = [x for x in self.nodes[i].next if x not in remove]            
                    
-                   
+         # if c has no children but multiple parents, we only give c one parent node
+        for i in range(len(self.nodes) ):
+            node = self.nodes[i]
+            if  (len(node.next) == 0) and (len(node.pre ) > 1):
+                # only the first parent node is reserved
+                for j in range(1, len(node.pre)):
+                    self.nodes[node.pre[j]].next.remove(i)
+                node.pre = [node.pre[0]]
         return
     def clear(self):
         self.matrix = np.array(0)
@@ -101,6 +119,7 @@ class suGraph():
                 self.nodes[idx].pocket_id = 0            
         return regions    
     
+    # test function
     def connect_node_by_spiral(self, sprials):
         edges = []
         #traverse from node[0]
@@ -130,14 +149,17 @@ class suGraph():
         
     # visualization functions
     def to_Mathematica(self, filepath):
+        import re
         np.set_printoptions(threshold=np.inf)
         script = 'GraphPlot[DATA, VertexLabeling -> True, MultiedgeStyle -> True(*,  DirectedEdges -> True*)]'
-       
-        sData = str(self.matrix)
+        
+        #sData = str(self.matrix)
+        sData = str(self.get_matrix_from_graph())
         sData = sData.replace('\n', '')
         sData = sData.replace('[', '{')
-        sData = sData.replace(']', '}')
-        sData = sData.replace(' ', ', ')
+        sData = sData.replace(']', '}')                
+        sData = re.sub("\s+", ", ", sData)
+        
         if(len(filepath) == 0):
             print(script.replace('DATA', sData))
         else:
