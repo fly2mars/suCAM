@@ -119,7 +119,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     
     ## Build a init graph from boundaries
     # contour distance threshold between adjacent layers
-    dist_th = abs(offset) * 1.05
+    dist_th = abs(offset) * 1.1
 
     iB = 0
     for boundary in path2d.group_boundary.values():
@@ -176,13 +176,17 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
             cs = []
             for c_id in p:
                 cs.append(iso_contours_2D[c_id])
-                pe.path2d.draw_text(str(c_id + 1), iso_contours_2D[c_id][0], pe.im)
+                #pe.path2d.draw_text(str(c_id + 1), iso_contours_2D[c_id][0], pe.im)
+                if(c_id in [27,28,32,34]):
+                    
+                    path2d.draw_line(iso_contours_2D[c_id], pe.im, [0,255,0],1)
+                pe.path2d.draw_text(str(c_id + 1), iso_contours_2D[c_id][0], pe.im)#, 2,2)
                     
             if(len(cs) !=0):
                 spiral = pe.build_spiral_for_pocket(cs)  
                 spirals.append(spiral)                
-               
-        color = [0,255,0]
+       
+        color = [0,0,255]
         for p_id in range(len(pockets)):
             #node = graph.get_node(where_pocket_id = p_id)
             #if node.is_typeII():
@@ -206,12 +210,13 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
         path2d.group_relationship_matrix.append(R)
         iB += 1
     
-        graph.connect_node_by_spiral(spirals)
+        #graph.connect_node_by_spiral(spirals)
    
         
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
     pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
     cv2.imshow("Art", pe.im)
+    cv2.imwrite("d:/tmp.png", pe.im)
     cv2.waitKey(0)          
         
 
@@ -219,5 +224,6 @@ if __name__ == '__main__':
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/two-circle.png", -10, False)
-    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -10, False)
+    
+    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -4, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")

@@ -79,8 +79,8 @@ class suGraph():
     # Note: this algorithm can search classes from any node
     def classify_nodes_by_type(self, matrix, map_ij = []):
         self.init_from_matrix(matrix)
-        if(len(map_ij) != 0):
-            self.simplify_with_layer_info(map_ij)
+        #if(len(map_ij) != 0):
+            #self.simplify_with_layer_info(map_ij)
         regions = []   #contour id groups
         pocket = []
         nodes_to_search = [0]   # outter contour
