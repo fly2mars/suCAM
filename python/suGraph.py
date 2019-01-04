@@ -6,6 +6,7 @@ class suNode():
         self.pre = []
         self.next = []
         self.pocket_id = -1      # for connection between pocket   
+       
     def get_number_of_path(self):
         return len(self.pre) + len(self.next)
     
@@ -23,6 +24,7 @@ class suGraph():
     def __init__(self):
         self.matrix = np.array(0)
         self.nodes = []
+        self.visited = []
         return
     def init_from_matrix(self, matrix):
         self.matrix = matrix        
@@ -42,6 +44,56 @@ class suGraph():
             node = self.nodes[i]
             M[i][node.next] = 1
         return M.astype(int)
+    # deep first search from node i to check if a node can be visited
+    # use self.matrix
+    def dfs(self, i):
+        if(len(self.visited)==0):
+            self.visited = np.zeros(len(self.nodes)).astype(int)            
+        self.visited[i] = 1
+        
+        ids = np.argwhere(self.matrix[i] == 1)           
+        nex = list(ids.reshape(len(ids)) )
+        ids = np.argwhere(self.matrix.T[i] == 1)
+        pre = list(ids.reshape(len(ids)) )
+        edges = nex + pre
+        for j in edges:
+            if self.visited[j] == 0:
+                self.dfs(j);
+        return
+    def is_connected(self):
+        self.visited = []        
+        self.dfs(0)
+        
+        unvisited = np.argwhere(self.visited == 0)
+        if(len(unvisited) == 0):
+            return True
+        return False
+    
+    # Use a reverse delete mehtod to construct minimum-weight spanning tree
+    # The diffence are:
+    #    1. Only the type-II nodes are considered to be deleted
+    #    2. We don't use the distance as a weight, because all neighbored  
+    #       iso-contours have the similar distance. We remove an edge then
+    #       test if the graph is still connected
+    def to_reverse_delete_MST(self):
+        self.get_matrix_from_graph()
+        
+        Matrix = self.matrix
+        for i in range(len(self.nodes) ):
+            ids = np.argwhere(self.matrix.T[i] == 1)
+            pre = ids.reshape(len(ids))
+            #only for type-II
+            if len(self.nodes[i].pre) > 1:                
+                for idx in pre:
+                    #remove idx and check connectivity of graph
+                    self.matrix[idx][i] = 0
+                    self.matrix[i][idx] = 0
+                    if(not self.is_connected()):
+                        self.matrix[idx][i] = 1
+                        self.matrix[i][idx] = 1
+                    
+                
+        return
 
     # simplify graph with info of contour layer
     def simplify_with_layer_info(self, map_ij):
@@ -74,6 +126,7 @@ class suGraph():
         return
     def clear(self):
         self.matrix = np.array(0)
+        self.visited = []
         return
     # @root_nodes: index list of all root nodes
     # Note: this algorithm can search classes from any node
@@ -167,3 +220,17 @@ class suGraph():
             file.write(script.replace('DATA', sData))
             file.close()
         return
+
+if __name__ == '__main__':
+    # test graph 
+    N = 10
+    M = np.random.randint(0,2,[N,N])    
+    graph = suGraph()
+    graph.init_from_matrix(M)
+    graph.to_reverse_delete_MST()
+    
+    graph.to_Mathematica("")
+    
+    print(graph.is_connected())
+    
+    

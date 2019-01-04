@@ -216,7 +216,7 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
     pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
     cv2.imshow("Art", pe.im)
-    cv2.imwrite("d:/tmp.png", pe.im)
+    cv2.imwrite("r:/tmp.png", pe.im)
     cv2.waitKey(0)          
         
 
