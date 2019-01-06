@@ -5,6 +5,7 @@ class suNode():
     def __init__(self):
         self.pre = []
         self.next = []
+        self.data = []
         self.pocket_id = -1      # for connection between pocket   
        
     def get_number_of_path(self):
@@ -44,9 +45,59 @@ class suGraph():
             node = self.nodes[i]
             M[i][node.next] = 1
         return M.astype(int)
+    
+    # generate pocket graph by using dfs_combine_tree()
+    def gen_pockets_graph(self):
+        nodes = []
+        self.dfs_combine_tree(0, [], nodes)
+        pocket_graph = suGraph()
+        pocket_graph.nodes = nodes
+        pocket_graph.get_matrix_from_graph()
+        
+        return pocket_graph
+    
+    
+    # deep first search for finding pockets
+    # return node list can be used to construct a new graph
+    def dfs_combine_tree(self, i, visited, nodes, parent_id=-1):
+        if(len(visited)==0):
+            visited = np.zeros(len(self.nodes)).astype(int)            
+        visited[i] = 1   
+        ori_node = self.nodes[i]
+        edges = ori_node.pre + ori_node.next
+        
+        if(parent_id == -1):
+            node = suNode()
+            node.data.append(i)
+            nodes.append(node)   
+        # make a new node for type-II
+        if(len(edges) > 2):
+            node = suNode()
+            node.data.append(i)
+            node.pre = [ parent_id ]
+            nodes[parent_id].next.append(len(nodes))
+            nodes.append(node)
+        # combine node for type-I
+        if(len(edges) <= 2 and parent_id != -1):
+            nodes[-1].data.append(i)
+    
+        
+        cur_id = len(nodes) - 1 
+        for j in edges:            
+            if visited[j] == 0:
+                if (len(edges)  > 2) and (self.nodes[j].get_number_of_path() <= 2):
+                    #make one node for each pocket you want to combine
+                    node = suNode()
+                    node.pre.append(cur_id)
+                    nodes.append(node)
+                    nodes[cur_id].next.append(len(nodes) - 1)
+                self.dfs_combine_tree(j, visited, nodes, cur_id)          
+        
+        return 
+        
     # deep first search from node i to check if a node can be visited
     # use self.matrix
-    def dfs(self, i):
+    def dfs_visit(self, i):
         if(len(self.visited)==0):
             self.visited = np.zeros(len(self.nodes)).astype(int)            
         self.visited[i] = 1
@@ -58,11 +109,11 @@ class suGraph():
         edges = nex + pre
         for j in edges:
             if self.visited[j] == 0:
-                self.dfs(j);
+                self.dfs_visit(j);
         return
     def is_connected(self):
         self.visited = []        
-        self.dfs(0)
+        self.dfs_visit(0)
         
         unvisited = np.argwhere(self.visited == 0)
         if(len(unvisited) == 0):
@@ -78,7 +129,7 @@ class suGraph():
     def to_reverse_delete_MST(self):
         self.get_matrix_from_graph()
         
-        Matrix = self.matrix
+        #Matrix = self.matrix
         for i in range(len(self.nodes) ):
             ids = np.argwhere(self.matrix.T[i] == 1)
             pre = ids.reshape(len(ids))
@@ -87,43 +138,15 @@ class suGraph():
                 for idx in pre:
                     #remove idx and check connectivity of graph
                     self.matrix[idx][i] = 0
-                    self.matrix[i][idx] = 0
+                    #print(self.matrix[i][idx])
+                    #print(self.matrix)
                     if(not self.is_connected()):
+                        #print("Not connected")
                         self.matrix[idx][i] = 1
-                        self.matrix[i][idx] = 1
-                    
-                
+           
+        self.init_from_matrix(self.matrix)      
         return
 
-    # simplify graph with info of contour layer
-    def simplify_with_layer_info(self, map_ij):
-        # if both c1(i,j) and c2(i,j) have the same layer number i, 
-        # we don't construct a parent-child relationship between them.
-        for i in range(len(self.nodes) ):
-            remove = []
-            for pre in self.nodes[i].pre:
-                pre_node = self.nodes[pre]
-                if(map_ij[pre][0] == map_ij[i][0]):
-                    remove.append(pre)
-                    pre_node.next.remove(i)
-            self.nodes[i].pre = [x for x in self.nodes[i].pre if x not in remove]
-            remove = []
-            for next in self.nodes[i].next:
-                next_node = self.nodes[next]
-                if(map_ij[next][0] == map_ij[i][0]):
-                    remove.append(next)
-                    next_node.pre.remove(i)
-            self.nodes[i].next = [x for x in self.nodes[i].next if x not in remove]            
-                   
-         # if c has no children but multiple parents, we only give c one parent node
-        for i in range(len(self.nodes) ):
-            node = self.nodes[i]
-            if  (len(node.next) == 0) and (len(node.pre ) > 1):
-                # only the first parent node is reserved
-                for j in range(1, len(node.pre)):
-                    self.nodes[node.pre[j]].next.remove(i)
-                node.pre = [node.pre[0]]
-        return
     def clear(self):
         self.matrix = np.array(0)
         self.visited = []
@@ -134,6 +157,7 @@ class suGraph():
         self.init_from_matrix(matrix)
         #if(len(map_ij) != 0):
             #self.simplify_with_layer_info(map_ij)
+        self.to_reverse_delete_MST()
         regions = []   #contour id groups
         pocket = []
         nodes_to_search = [0]   # outter contour
@@ -204,7 +228,7 @@ class suGraph():
     def to_Mathematica(self, filepath):
         import re
         np.set_printoptions(threshold=np.inf)
-        script = 'GraphPlot[DATA, VertexLabeling -> True, MultiedgeStyle -> True(*,  DirectedEdges -> True*)]'
+        script = 'GraphPlot[DATA, VertexLabeling -> True, MultiedgeStyle -> True,  DirectedEdges -> True]'
         
         #sData = str(self.matrix)
         sData = str(self.get_matrix_from_graph())
@@ -227,10 +251,17 @@ if __name__ == '__main__':
     M = np.random.randint(0,2,[N,N])    
     graph = suGraph()
     graph.init_from_matrix(M)
+    graph.to_Mathematica("")
     graph.to_reverse_delete_MST()
-    
+    graph.init_from_matrix(graph.matrix)
     graph.to_Mathematica("")
     
-    print(graph.is_connected())
-    
-    
+    #nodes = []
+    #graph.dfs_combine_tree(0, [], nodes)
+    #new_graph = suGraph()
+    #new_graph.nodes = nodes
+    #new_graph.get_matrix_from_graph()
+    pocket_graph = graph.gen_pockets_graph()
+    pocket_graph.to_Mathematica("")
+    for n in pocket_graph.nodes:
+        print(n.data)

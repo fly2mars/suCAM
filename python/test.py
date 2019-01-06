@@ -101,12 +101,6 @@ def test_segment_contours_in_region(filepath):
    
 
 
-def connect_spiral(fc1, fc2):
-    # from fc1 point 1
-    # find nearest 
-    
-    return
-
 def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     path2d = pathengine.suPath2D()
 
@@ -199,11 +193,10 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
                     color = [255,0,0]
             path2d.draw_line(spirals[p_id], pe.im, color,1)
             
-                    
-        #path2d.draw_line(iso_contours_2D[37], pe.im, [0,0,255],2)
-        #np.set_printoptions(threshold=np.inf)
-        #print(R[37])
-        #print(R.T[37])
+        ns = pe.connect_two_pockets(spirals[0],spirals[1], abs(offset))         
+        path2d.draw_line(ns, pe.im, [0,255,0],2)
+        
+        
         graph.to_Mathematica("")
         path2d.group_isocontours.append(iso_contours)
         path2d.group_isocontours_2D.append(iso_contours_2D)
@@ -218,12 +211,87 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     cv2.imshow("Art", pe.im)
     cv2.imwrite("r:/tmp.png", pe.im)
     cv2.waitKey(0)          
-        
 
+# How to generate continuous
+#
+def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = True):
+    path2d = pathengine.suPath2D()
+
+    line_width = 1 #int(abs(offset)/2)
+    pe = pathengine.pathEngine()   
+    pe.generate_contours_from_img(filepath, reverseImage)
+    pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
+    contour_tree = pe.convert_hiearchy_to_PyPolyTree() 
+    path2d.group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')
+    
+    iB = 0
+    for boundary in path2d.group_boundary.values():
+        msg = "Region {}: has {} boundry contours.".format(iB, len(boundary))
+        print(msg)
+        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset) 
+        
+        # init contour graph for iso contour by a distance matrix
+        num_contours = 0       
+        iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours, offset) 
+        
+        graph.to_Mathematica("")
+        # generate a minimum-weight spanning tree
+        graph.to_reverse_delete_MST()
+        graph.to_Mathematica("")
+        # generate a minimum-weight spanning tree
+        pocket_graph = graph.gen_pockets_graph()
+        pocket_graph.to_Mathematica("")
+        # generate spiral for each pockets
+        # deep first search
+        spirals = {}
+        def dfs_connect_path_from_bottom(i, nodes, iso_contours_2D, spirals, offset):
+            node = nodes[i]  
+            msg = '{} make spiral {}'.format(i+1, np.asarray(node.data) + 1)
+            print(msg)  
+            cs = []
+            for ii in node.data:
+                cs.append(iso_contours_2D[ii])
+            spirals[i] = pe.build_spiral_for_pocket(cs)    
+            path2d.draw_line(spirals[i], pe.im, [255,255,0],1)
+            if(len(node.next) > 0): 
+                for ic in node.next:
+                    dfs_connect_path_from_bottom(ic, nodes, iso_contours_2D, spirals, offset)
+                    msg = '{} insert {}'.format(i+1, ic+1)
+                    print(msg)
+                    spirals[i] = pe.connect_two_pockets(spirals[i],spirals[ic], abs(offset))
+         
+            return
+        
+        dfs_connect_path_from_bottom(0, pocket_graph.nodes, iso_contours_2D, spirals, offset)       
+                #cs = []
+                #for i in node.data:
+                    #cs.append(iso_contours_2D[i])
+                #if(len(cs) !=0):
+                    #spiral = pe.build_spiral_for_pocket(cs)   
+                
+        
+        # connect from botom 
+        
+        path2d.draw_line(spirals[0], pe.im, [0,255,0],2)
+        path2d.draw_line(spirals.get(4), pe.im, [0,0,255],1)
+        #path2d.draw_line(spirals[7], pe.im, [255,255,0],1)
+        iB += 1
+    
+        #graph.connect_node_by_spiral(spirals)
+   
+        
+    gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
+    pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
+    cv2.imshow("Art", pe.im)
+
+    cv2.waitKey(0)        
+    
 if __name__ == '__main__':  
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/two-circle.png", -10, False)
     
-    test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -4, False)
+    #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
+    #test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/honeycomb.png", -8, False)
+    test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -12)

@@ -23,11 +23,11 @@ import math
 import scipy.spatial.distance as scid
 import suGraph
 from scipy.signal import savgol_filter
-'''
-Hold path info and visualization functions for 2D slice
-@contour_tree:   
-'''
-class suPath2D():
+
+class suPath2D:
+    '''
+    Hold data structure and tool functions for 2D path
+    '''    
     def __init__(self):        
         self.contour_tree      = None
         self.group_boundary    = []
@@ -35,18 +35,18 @@ class suPath2D():
         self.group_isocontours_2D = []
         self.group_relationship_matrix = []
         
-        return
-    ##################################################################
-    # Get a 1D global index from iso_contours list contour(i,j), where
-    # i is the distance to the boundary, there are many contours(j=0...n-1).  
-    # Thus we can generate a index matrix for building a graph that can
-    # be visualized in different tools.
-    # Mathematica:
-    #    GraphPlot[{{1, 1, 1, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 1, 0, 1}},
-    #               SelfLoopStyle -> True, MultiedgeStyle -> True,
-    #               VertexLabeling -> True, DirectedEdges -> True]
-    ##################################################################   
+        return 
     def get_contour_id(self,i,j,iso_contours):
+        '''
+        Get a 1D global index from iso_contours list contour(i,j), where
+        i is the distance to the boundary, there are many contours(j=0...n-1).  
+        Thus we can generate a index matrix for building a graph that can
+        be visualized in different tools. Eg.
+        Mathematica:
+           GraphPlot[{{1, 1, 1, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 1, 0, 1}},
+                     SelfLoopStyle -> True, MultiedgeStyle -> True,
+                     VertexLabeling -> True, DirectedEdges -> True]
+        '''
         id = 0 
         ii = 0
         for cs in iso_contours:
@@ -56,22 +56,45 @@ class suPath2D():
             ii += 1           
         id += j # indexed from 0
         return id   
-    def prev_idx(self, idx, contour):    
+    @staticmethod
+    def prev_idx(idx, contour):
+        """ Returns next point id for a closed contour.  """
         if idx > 0:
             return idx - 1;
         if idx == 0:
             return len(contour) -1
-    
-    def next_idx(self, idx, contour):
+    @staticmethod
+    def next_idx(idx, contour):
+        """ Returns previous point id for a closed contour.  """
         if idx < len(contour)-1:
             return idx + 1
         if idx == len(contour) - 1:
-            return 0    
+            return 0
+    @staticmethod
+    def unit_vector(vector):
+        """ Returns the unit vector of the vector.  """
+        return vector / np.linalg.norm(vector)  
+    @staticmethod
+    def angle_between(v1, v2):
+        """ Returns the angle in radians between vectors 'v1' and 'v2'
+    
+                >>> angle_between((1, 0, 0), (0, 1, 0))
+                1.5707963267948966
+                >>> angle_between((1, 0, 0), (1, 0, 0))
+                0.0
+                >>> angle_between((1, 0, 0), (-1, 0, 0))
+                3.141592653589793
+        """
+        v1_u = suPath2D.unit_vector(v1)
+        v2_u = suPath2D.unit_vector(v2)
+        return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)) / math.pi * 180
     ####################################
     # draw poly line to image #
     # point_list is n*2 np.ndarray #
     ####################################
     def draw_line(self, point_lists, img, color, line_width=1, point_size=0):
+        if point_lists == None or len(point_lists) == 0:
+            return
         point_lists = point_lists.astype(int)
         pts = point_lists.reshape((-1,1,2))
         cv2.polylines(img, [pts], False, color, thickness=line_width, lineType=cv2.LINE_AA)
@@ -387,16 +410,21 @@ class pathEngine:
                 distance = d
                 idx = i
         return idx   
-    ##########################################################################
-    #find an index of point from end, with distance larger than T
-    #@in: current index of point, current contour, 
-    #@in: T is a distance can be set to offset or offset/2 or 2 * offset
-    ##########################################################################
-    def find_point_index_by_distance(self, cur_point_index, cur_contour, T):
+    
+    def find_point_index_by_distance(self, cur_point_index, cur_contour, T, ori=1):
+        '''
+        find an index of point from current point, which distance larger than T
+        @in: current index of point, current contour, 
+        @in: T is a distance can be set to offset or offset/2 or 2 * offset
+        @ori: orientation ori = 1 prev order, ori = 0 next order
+        '''
         T = abs(T)
         start_point = cur_contour[cur_point_index]
-        idx_end_point = self.prev_idx(cur_point_index, cur_contour)
         
+        if (ori):
+            idx_end_point = self.prev_idx(cur_point_index, cur_contour)
+        else:
+            idx_end_point = self.next_idx(cur_point_index, cur_contour)
         end_point=[]        
         for ii in range(0,len(cur_contour)-1):
             end_point = cur_contour[idx_end_point]
@@ -404,7 +432,11 @@ class pathEngine:
             if distance > T:           
                 break
             else:           
-                idx_end_point = self.prev_idx(idx_end_point, cur_contour)  
+                #idx_end_point = self.prev_idx(idx_end_point, cur_contour) 
+                if (ori):
+                    idx_end_point = self.prev_idx(idx_end_point, cur_contour)
+                else:
+                    idx_end_point = self.next_idx(idx_end_point, cur_contour)                
         return idx_end_point    
     ##############################################################
     # @in: iso contours, index of start point, offset
@@ -451,8 +483,104 @@ class pathEngine:
         for i in range(len(second_spiral)):
             s.append(second_spiral[i])
         return s
-    
+    # return contours 2d list
+    # init a graph for organizing iso-contours
+    def init_isocontour_graph(self, iso_contours, offset):
+        num_contours = 0       
+        iso_contours_2D = []
+        # contour distance threshold between adjacent layers
+        dist_th = abs(offset) * 1.1
 
+        for i in range(len(iso_contours)):
+            for j in range(len(iso_contours[i])):
+                # resample and convert to np.array
+                iso_contours[i][j] = self.resample_curve_by_equal_dist(iso_contours[i][j], abs(offset)/4) 
+                if(i == 0):
+                    iso_contours_2D.append(np.flip(iso_contours[i][j],0))
+                else:
+                    iso_contours_2D.append(iso_contours[i][j])                
+
+                #map_ij.append([i,j])
+                num_contours += 1         
+        # @R is the relationship matrix
+        R = np.zeros((num_contours, num_contours)).astype(int)    
+        i = 0
+        for cs in iso_contours[:-1]:     # for each group contour[i], where i*offset reprents the distance from boundaries      
+            j1 = 0           
+            for c1 in cs:               
+                c1_id = self.path2d.get_contour_id(i, j1, iso_contours)  
+
+                j2 = 0
+                for c2 in iso_contours[i+1]:
+                    dist = scid.cdist(c1, c2, 'euclidean')
+                    min_dist = np.min(dist)
+                    #print(dist)
+                    if(min_dist < dist_th):
+                        c2_id = self.path2d.get_contour_id(i+1, j2, iso_contours)
+                        R[c1_id][c2_id] = 1
+
+                    j2 += 1
+                j1 += 1
+            i += 1       
+        #visualize
+        graph = suGraph.suGraph()  
+        graph.init_from_matrix(R)
+
+        return iso_contours_2D, graph    
+    
+     
+    def connect_two_pockets(self, fc1, fc2, offset):
+        '''
+        connect to the next contour then going back
+        connect points:
+                        start                    end
+           fc1:    pid_c1(closest)         goning forward with distance offset (from start)
+           fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
+        '''
+        # get point id of the closest pair of points 
+        dist = scid.cdist(fc1, fc2, 'euclidean')
+        min_dist = np.min(dist)    
+        gId = np.argmin(dist)
+        pid_c1 = int(gId / dist.shape[1])
+        pid_c2 = gId - dist.shape[1] * pid_c1          
+        
+        # check orientation
+        nid_c1 = self.path2d.next_idx(pid_c1, fc1)
+        nid_c2 = self.path2d.next_idx(pid_c2, fc2)
+        dir_fc1 = fc1[nid_c1] - fc1[pid_c1]
+        dir_fc2 = fc2[nid_c2] - fc2[pid_c2]
+        angle = suPath2D.angle_between(dir_fc1, dir_fc2)
+        
+        fc = []
+        #find return point with distance to pid_c1 = offset
+        idx_offset = self.find_point_index_by_distance(pid_c1, fc1, offset, 0)
+        
+        
+        
+        #fc1 from 0 to pid_c1
+        for i in range(pid_c1+1):
+            fc.append(fc1[i]) 
+        #fc2 from pid_c2 to end_point
+        idx_end = self.find_nearest_point_idx(fc1[idx_offset], fc2)
+        idx = pid_c2
+        if angle > 90:
+            # different orientaton: 
+            while idx != idx_end:  
+                fc.append(fc2[idx])
+                idx = self.path2d.next_idx(idx, fc2)            
+        else:
+            while idx != idx_end:  
+                fc.append(fc2[idx])
+                idx = self.path2d.prev_idx(idx, fc2)            
+                
+        
+        fc.append(fc2[idx_end])
+        
+        while idx_offset != 0:
+            fc.append(fc1[idx_offset])
+            idx_offset = self.path2d.next_idx(idx_offset, fc1)            
+            
+        return np.asarray(fc)    
     def smooth_curve_by_savgol(self, c, filter_width=5, polynomial_order=1):
         N = 10
         c = np.array(c)
