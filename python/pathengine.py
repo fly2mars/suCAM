@@ -114,8 +114,8 @@ class suPath2D:
        
         resample_size = size 
         N = int(contour_length / resample_size)
-        #if (N < len(contour)):
-        #    return contour
+        if (N < 50):
+            return np.asarray(contour)
        
         dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
         cur_id = 0           # for concise
@@ -147,7 +147,21 @@ class suPath2D:
                    
             cur_id = next_id
         #print(resample_c)  
-        return  np.asarray(resample_c)    
+        return  np.asarray(resample_c)   
+    @staticmethod
+    def find_closest_point_pair(c1, c2):
+        '''
+        Return two indice of the closest pair of points.
+        
+        example:
+            id1, id2 = find_closest_point_pair(c1,c2)
+        '''
+        dist = scid.cdist(c1, c2, 'euclidean')
+        min_dist = np.min(dist)    
+        gId = np.argmin(dist)
+        pid_c1 = int(gId / dist.shape[1])
+        pid_c2 = gId - dist.shape[1] * pid_c1            
+        return pid_c1, pid_c2
     ####################################
     # draw poly line to image #
     # point_list is n*2 np.ndarray #
@@ -496,16 +510,17 @@ class pathEngine:
         return s
     # return contours 2d list
     # init a graph for organizing iso-contours
-    def init_isocontour_graph(self, iso_contours, offset):
+    def init_isocontour_graph(self, iso_contours):
         num_contours = 0       
         iso_contours_2D = []
         # contour distance threshold between adjacent layers
-        dist_th = abs(offset) * 1.1
+        dist_th = abs(self.offset) * 1.1
 
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
                 # resample and convert to np.array
-                iso_contours[i][j] = suPath2D.resample_curve_by_equal_dist(iso_contours[i][j], abs(offset)/4) 
+                inter_size = abs(self.offset)/4
+                iso_contours[i][j] = suPath2D.resample_curve_by_equal_dist(iso_contours[i][j], inter_size) 
                 if(i == 0):
                     iso_contours_2D.append(np.flip(iso_contours[i][j],0))
                 else:
@@ -539,7 +554,7 @@ class pathEngine:
 
         return iso_contours_2D, graph    
     
-     
+    
     def connect_two_pockets(self, fc1, fc2, offset):
         '''
         connect to the next contour then going back
@@ -547,14 +562,8 @@ class pathEngine:
                         start                    end
            fc1:    pid_c1(closest)         goning forward with distance offset (from start)
            fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
-        '''
-        # get point id of the closest pair of points 
-        dist = scid.cdist(fc1, fc2, 'euclidean')
-        min_dist = np.min(dist)    
-        gId = np.argmin(dist)
-        pid_c1 = int(gId / dist.shape[1])
-        pid_c2 = gId - dist.shape[1] * pid_c1          
-        
+        '''        
+        pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
         # check orientation
         nid_c1 = self.path2d.next_idx(pid_c1, fc1)
         nid_c2 = self.path2d.next_idx(pid_c2, fc2)
@@ -597,16 +606,54 @@ class pathEngine:
             
         return np.asarray(fc)    
     def smooth_curve_by_savgol(self, c, filter_width=5, polynomial_order=1):
-        N = 10
+        #N = 10
+        last_vert = c[-1]
         c = np.array(c)
         y = c[:, 1]
         x = c[:, 0]
         x2 = savgol_filter(x, filter_width, polynomial_order)
         y2 = savgol_filter(y, filter_width, polynomial_order)
         c = np.transpose([x2,y2])
+        c = np.vstack((c,last_vert))
+            
         return c    
     # 
     # 
+    @staticmethod
+    def check_pocket_ratio_by_pca(cs,offset=4):
+        '''
+        return ratio, start_point_idx by Principal Component Analysis(PCA)    
+        @ratio = second component / first component
+        @start_point_idx speicify an entrance position by PCA
+        input
+        @cs: contour list in pockets
+        @offset: to determin distance of interpolation 
+        '''
+        from sklearn.decomposition import PCA
+        verts = []
+        for c in cs:
+            for p in c:
+                verts.append(p)
+        verts = np.array(verts).reshape([len(verts),2])    
+        pca = PCA(n_components=2)
+        pca.fit(verts)
+    
+        v = []
+        l = []
+        for length, vector in zip(pca.explained_variance_, pca.components_):
+            sqrt_len = np.sqrt(length) 
+            v.append(vector * 3 * sqrt_len)
+            l.append(sqrt_len)
+        ratio = l[1] / l[0]     
+        # find a index of point in cs[0] that is nearest to axes <pca.mean, pca.mean + v[1]>
+        # interpolation on line <pca.mean, pca.mean + v[1]>
+        ax1 = []
+        ax1.append(pca.mean_)
+        ax1.append(pca.mean_ + v[1])
+        ax1 = suPath2D.resample_curve_by_equal_dist(ax1, abs(offset)/2)
+        pid_c1, pid_c2 = suPath2D.find_closest_point_pair(cs[0],ax1)
+        
+        return ratio, pid_c1    
     def build_spiral_for_pocket(self, iso_contours):
         '''
         Split contours into two groups(by odd/even), connect each then join these two spirals.
@@ -623,20 +670,32 @@ class pathEngine:
             else:
                 out_contour_groups.append(iso_contours[idx])
     
+        #test
+        start_id = 0
+        ratio, entrance_id = pathEngine.check_pocket_ratio_by_pca(in_contour_groups, self.offset)        
+        if(ratio > 0.5):
+            start_id = entrance_id
+        #cv2.circle(self.im, tuple(in_contour_groups[0][start_id].astype(int)), 5, (0,0,255)) 
         
-        cc_in = self.contour2spiral(in_contour_groups,0, self.offset )
-        output_index = self.find_nearest_point_idx(in_contour_groups[0][0], out_contour_groups[0]) 
-    
+        cc_in = self.contour2spiral(in_contour_groups,start_id, self.offset )
+        output_index = self.find_nearest_point_idx(in_contour_groups[0][start_id], out_contour_groups[0]) 
+        
+        #test
+        #cv2.circle(self.im, tuple(out_contour_groups[0][output_index].astype(int)), 5, (0,0,255)) 
+        
         cc_out = self.contour2spiral(out_contour_groups, output_index, self.offset )
     
         ## connect two spiral
         fspiral = self.connect_spiral(cc_in, cc_out)
         ## set out point
-        out_point_index = self.find_point_index_by_distance(0, in_contour_groups[0], self.offset)
-        fspiral.append(in_contour_groups[0][out_point_index])   
+        out_point_index = self.find_point_index_by_distance(start_id, in_contour_groups[0], self.offset/2)
+        fspiral.append(in_contour_groups[0][out_point_index])  
+        #print(type(fspiral))
+        #print(fspiral[-4:])
+        #cv2.circle(self.im, tuple(fspiral[-1].astype(int)), 5, (0,0,255)) 
         ## smooth withe filter size 3, order 1
         #fspiral = self.smooth_curve_by_savgol(fspiral, 3, 1)    
-        return fspiral    
+        return np.array(fspiral)    
 
 ############################################################################################################
 #                         Test Functions                                                                   #   

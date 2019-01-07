@@ -214,35 +214,9 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     cv2.imwrite("r:/tmp.png", pe.im)
     cv2.waitKey(0)          
 
-def check_pocket_ratio_by_pca(cs,offset=4):
-    '''
-    return ratio, start_point_idx by Principal Component Analysis(PCA)    
-    @ratio = second component / first component
-    @start_point_idx speicify an entrance position by PCA
-    input
-    @cs: contour list in pockets
-    @offset: to determin distance of interpolation 
-    '''
-    from sklearn.decomposition import PCA
-    pca = PCA(n_components=2)
-    pca.fit(verts)
-    v = []
-    l = []
-    for length, vector in zip(pca.explained_variance_, pca.components_):
-        sqrt_len = np.sqrt(length) 
-        v.append(vector * 3 * sqrt_len)
-        l.append(sqrt_len)
-    ratio = l[1] / l[0]
+
     
-    # find a index of point in cs[0] that is nearest to axes <pca.mean, pca.mean + v[1]>
-    # interpolation on line <pca.mean, pca.mean + v[1]>
-    ax1 = []
-    ax1.append(pca.mean)
-    ax1.append(pca.mean + v[1])
-    suPath2D.resample_curve_by_equal_dist(ax1, abs(offset)/2)
-    # find closest pair of points
-    
-    return
+   
 
 def draw_pca_for_pocket(verts):
     '''
@@ -293,7 +267,7 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         
         # init contour graph for iso contour by a distance matrix
         num_contours = 0       
-        iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours, offset) 
+        iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours) 
         
         graph.to_Mathematica("")
         # generate a minimum-weight spanning tree
@@ -312,8 +286,9 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
             cs = []
             for ii in node.data:
                 cs.append(iso_contours_2D[ii])
-            spirals[i] = pe.build_spiral_for_pocket(cs)    
-            #path2d.draw_line(spirals[i], pe.im, [255,255,0],1)
+            spirals[i] = pe.build_spiral_for_pocket(cs) 
+
+            path2d.draw_line(spirals[i], pe.im, [255,255,0],1)
             if(len(node.next) > 0): 
                 for ic in node.next:
                     dfs_connect_path_from_bottom(ic, nodes, iso_contours_2D, spirals, offset)
@@ -344,9 +319,9 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         #verts = np.array(verts).reshape([len(verts),2])
         #draw_pca_for_pocket(verts)
         # connect from botom 
-        spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 11, 1)
+        spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 9, 1)
         path2d.draw_line(spirals[0], pe.im, [100,255,100],1)
-        
+        #cv2.circle(pe.im, tuple(spirals[0][-1].astype(int)), 5, (0,0,255)) 
         #path2d.draw_line(spirals.get(4), pe.im, [0,0,255],1)
         #path2d.draw_line(spirals.get(1), pe.im, [255,0,255],1)
         
@@ -364,7 +339,7 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
     pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
-    cv2.imwrite("r:/tmp.png", pe.im)
+    cv2.imwrite("d:/tmp.png", pe.im)
     cv2.imshow("Art", pe.im)
 
     cv2.waitKey(0)        
@@ -376,5 +351,5 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -8, False)
+    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -6, False)
     #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -12)
