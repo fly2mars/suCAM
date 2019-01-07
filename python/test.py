@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 import pathengine
 import cv2
 import numpy as np
@@ -98,7 +100,7 @@ def test_segment_contours_in_region(filepath):
     cv2.imwrite("d:/tmp.png", pe.im)
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)    
-   
+
 
 
 def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
@@ -212,6 +214,65 @@ def test_pocket_spiral(filepath, offset = -14, reverseImage = True):
     cv2.imwrite("r:/tmp.png", pe.im)
     cv2.waitKey(0)          
 
+def check_pocket_ratio_by_pca(cs,offset=4):
+    '''
+    return ratio, start_point_idx by Principal Component Analysis(PCA)    
+    @ratio = second component / first component
+    @start_point_idx speicify an entrance position by PCA
+    input
+    @cs: contour list in pockets
+    @offset: to determin distance of interpolation 
+    '''
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    pca.fit(verts)
+    v = []
+    l = []
+    for length, vector in zip(pca.explained_variance_, pca.components_):
+        sqrt_len = np.sqrt(length) 
+        v.append(vector * 3 * sqrt_len)
+        l.append(sqrt_len)
+    ratio = l[1] / l[0]
+    
+    # find a index of point in cs[0] that is nearest to axes <pca.mean, pca.mean + v[1]>
+    # interpolation on line <pca.mean, pca.mean + v[1]>
+    ax1 = []
+    ax1.append(pca.mean)
+    ax1.append(pca.mean + v[1])
+    suPath2D.resample_curve_by_equal_dist(ax1, abs(offset)/2)
+    # find closest pair of points
+    
+    return
+
+def draw_pca_for_pocket(verts):
+    '''
+    Draw a PCA axes on pockets
+    The input data is the vertice of contours in current pocket
+    '''
+    from sklearn.decomposition import PCA
+    pca = PCA(n_components=2)
+    pca.fit(verts)
+    def draw_vector(v0, v1, ax=None):
+        ax = ax or plt.gca()
+        arrowprops=dict(arrowstyle='->',
+                        linewidth=2,
+                        shrinkA=0, shrinkB=0)
+        ax.annotate('', v1, v0, arrowprops=arrowprops)
+    
+    
+    plt.scatter(verts[:, 0], verts[:, 1], alpha=0.2)       
+    ax = plt.gca()
+    
+    for length, vector in zip(pca.explained_variance_, pca.components_):
+        v = vector * 3 * np.sqrt(length)
+        draw_vector(pca.mean_, pca.mean_ + v, ax)            
+    #plt.axis('equal');  
+    ax.set(xlabel='x', ylabel='y',
+               title='principal components',
+              xlim=(100, 400), ylim=(300, 600))           
+    plt.show()
+    return
+
 # How to generate continuous
 #
 def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = True):
@@ -252,7 +313,7 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
             for ii in node.data:
                 cs.append(iso_contours_2D[ii])
             spirals[i] = pe.build_spiral_for_pocket(cs)    
-            path2d.draw_line(spirals[i], pe.im, [255,255,0],1)
+            #path2d.draw_line(spirals[i], pe.im, [255,255,0],1)
             if(len(node.next) > 0): 
                 for ic in node.next:
                     dfs_connect_path_from_bottom(ic, nodes, iso_contours_2D, spirals, offset)
@@ -268,12 +329,33 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
                     #cs.append(iso_contours_2D[i])
                 #if(len(cs) !=0):
                     #spiral = pe.build_spiral_for_pocket(cs)   
-                
-        
+        #test 
+        #verts = []
+        #cs = []
+        #ll = [22, 25, 28, 30, 32]
+        #colors = pe.path2d.generate_RGB_list(len(ll))
+        #k = 0
+        #for jj in ll:
+            #path2d.draw_line(iso_contours_2D[jj], pe.im, colors[k],1)
+            #cs.append(iso_contours_2D[jj]) 
+            #k += 1
+            #for p in iso_contours_2D[jj]:
+                #verts.append(p)
+        #verts = np.array(verts).reshape([len(verts),2])
+        #draw_pca_for_pocket(verts)
         # connect from botom 
+        spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 11, 1)
+        path2d.draw_line(spirals[0], pe.im, [100,255,100],1)
         
-        path2d.draw_line(spirals[0], pe.im, [0,255,0],2)
-        path2d.draw_line(spirals.get(4), pe.im, [0,0,255],1)
+        #path2d.draw_line(spirals.get(4), pe.im, [0,0,255],1)
+        #path2d.draw_line(spirals.get(1), pe.im, [255,0,255],1)
+        
+        
+       
+        #sptmp = pe.build_spiral_for_pocket(cs)         
+        #path2d.draw_line(sptmp, pe.im, [0,0,255],1)
+        #path2d.draw_line(spirals.get(9), pe.im, [0,0,255],1)
+        #path2d.draw_line(spirals.get(5), pe.im, [0,255,0],1)
         #path2d.draw_line(spirals[7], pe.im, [255,255,0],1)
         iB += 1
     
@@ -282,6 +364,7 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
     pe.im[np.where((pe.im==[0,0,0]).all(axis=2))] = [255,255,255]
+    cv2.imwrite("r:/tmp.png", pe.im)
     cv2.imshow("Art", pe.im)
 
     cv2.waitKey(0)        
@@ -293,5 +376,5 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    #test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/honeycomb.png", -8, False)
-    test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -12)
+    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -8, False)
+    #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -12)

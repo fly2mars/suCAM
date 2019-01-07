@@ -88,6 +88,66 @@ class suPath2D:
         v1_u = suPath2D.unit_vector(v1)
         v2_u = suPath2D.unit_vector(v2)
         return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)) / math.pi * 180
+      
+    @staticmethod
+    def resample_curve_by_equal_dist(contour, size, is_open = False):
+        '''
+        Resample a curve by Roy's method
+        Refer to "http://www.morethantechnical.com/2012/12/07/resampling-smoothing-and-interest-points-of-curves-via-css-in-opencv-w-code/"
+        @contour: input contour
+        @size: sample size on the contour
+        @is_open: True means openned polyline, False means closed polylien
+        example:
+             c = suPath2D.resample_curve_by_equal_dist( c, nSample)     
+        '''
+        resample_c = []
+        ## compute length of contour
+        contour_length = 0;  
+        contour = np.asarray(contour)
+        for i in range(len(contour) - 1):
+            d = np.linalg.norm(contour[i+1]-contour[i])
+            contour_length += d
+           
+        if is_open == False:
+            d = np.linalg.norm(contour[0] - contour[-1])
+            contour_length += d
+       
+        resample_size = size 
+        N = int(contour_length / resample_size)
+        #if (N < len(contour)):
+        #    return contour
+       
+        dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
+        cur_id = 0           # for concise
+        resample_c.append(contour[0])
+       
+        nCount = len(contour) - 1
+        if is_open == False:     
+            nCount = len(contour)
+           
+        for i in range(nCount):
+            next_id = suPath2D.next_idx(cur_id, contour)
+            last_dist = np.linalg.norm(contour[next_id]-contour[i])
+            dist += last_dist    #current length
+            if(dist >= resample_size):
+                #put a point on line
+                d_ = last_dist - (dist - resample_size)    #reserve size
+                dir_ = contour[next_id] - contour[cur_id]
+               
+                new_point = contour[cur_id] + d_ * dir_ / np.linalg.norm(dir_)
+                resample_c.append(new_point)
+               
+                dist = last_dist - d_  #remaining dist
+               
+                #if remaining dist to next point needs more sampling...
+                while (dist - resample_size > 1e-3):
+                    new_point = resample_c[-1] + resample_size * dir_ / np.linalg.norm(dir_)
+                    resample_c.append(new_point)               
+                    dist -= resample_size              
+                   
+            cur_id = next_id
+        #print(resample_c)  
+        return  np.asarray(resample_c)    
     ####################################
     # draw poly line to image #
     # point_list is n*2 np.ndarray #
@@ -317,6 +377,7 @@ class pathEngine:
     #              ...
     ##############################################
     def fill_closed_region_with_iso_contours(self, input_contours, offset):
+        self.offset = offset
         iso_contours_of_a_region = []
         contours = input_contours
         iso_contours_of_a_region.append(input_contours)
@@ -326,75 +387,18 @@ class pathEngine:
             contours = pco.Execute(offset)           
             iso_contours_of_a_region.append( contours)
         return iso_contours_of_a_region
-    def prev_idx(self, idx, contour):   
-        if idx > 0:
-            return idx - 1;
-        if idx == 0:
-            return len(contour) -1
+    #def prev_idx(self, idx, contour):   
+        #if idx > 0:
+            #return idx - 1;
+        #if idx == 0:
+            #return len(contour) -1
    
-    def next_idx(self, idx, contour):
-        if idx < len(contour)-1:
-            return idx + 1
-        if idx == len(contour) - 1:
-            return 0   
-    ##################################################################################################################
-    # Resample a curve by Roy's method
-    # "http://www.morethantechnical.com/2012/12/07/resampling-smoothing-and-interest-points-of-curves-via-css-in-opencv-w-code/"
-    # @contour: input contour
-    # @size: sample size on the contour
-    # @is_open: True means openned polyline, False means closed polylien
-    # example:
-    #          c = resample_curve_by_equal_dist( c, nSample)
-    ##################################################################################################################
-    def resample_curve_by_equal_dist(self, contour, size, is_open = False):
-        resample_c = []
-        ## compute length of contour
-        contour_length = 0;  
-        contour = np.asarray(contour)
-        for i in range(len(contour) - 1):
-            d = np.linalg.norm(contour[i+1]-contour[i])
-            contour_length += d
-           
-        if is_open == False:
-            d = np.linalg.norm(contour[0] - contour[-1])
-            contour_length += d
-       
-        resample_size = size 
-        N = int(contour_length / resample_size)
-        #if (N < len(contour)):
-        #    return contour
-       
-        dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
-        cur_id = 0           # for concise
-        resample_c.append(contour[0])
-       
-        nCount = len(contour) - 1
-        if is_open == False:     
-            nCount = len(contour)
-           
-        for i in range(nCount):
-            next_id = self.next_idx(cur_id, contour)
-            last_dist = np.linalg.norm(contour[next_id]-contour[i])
-            dist += last_dist    #current length
-            if(dist >= resample_size):
-                #put a point on line
-                d_ = last_dist - (dist - resample_size)    #reserve size
-                dir_ = contour[next_id] - contour[cur_id]
-               
-                new_point = contour[cur_id] + d_ * dir_ / np.linalg.norm(dir_)
-                resample_c.append(new_point)
-               
-                dist = last_dist - d_  #remaining dist
-               
-                #if remaining dist to next point needs more sampling...
-                while (dist - resample_size > 1e-3):
-                    new_point = resample_c[-1] + resample_size * dir_ / np.linalg.norm(dir_)
-                    resample_c.append(new_point)               
-                    dist -= resample_size              
-                   
-            cur_id = next_id
-        #print(resample_c)  
-        return  np.asarray(resample_c)
+    #def next_idx(self, idx, contour):
+        #if idx < len(contour)-1:
+            #return idx + 1
+        #if idx == len(contour) - 1:
+            #return 0   
+    
    
     #######################################
     # find nearest index of point in a contour
@@ -422,9 +426,9 @@ class pathEngine:
         start_point = cur_contour[cur_point_index]
         
         if (ori):
-            idx_end_point = self.prev_idx(cur_point_index, cur_contour)
+            idx_end_point = suPath2D.prev_idx(cur_point_index, cur_contour)
         else:
-            idx_end_point = self.next_idx(cur_point_index, cur_contour)
+            idx_end_point = suPath2D.next_idx(cur_point_index, cur_contour)
         end_point=[]        
         for ii in range(0,len(cur_contour)-1):
             end_point = cur_contour[idx_end_point]
@@ -432,20 +436,21 @@ class pathEngine:
             if distance > T:           
                 break
             else:           
-                #idx_end_point = self.prev_idx(idx_end_point, cur_contour) 
+                #idx_end_point = suPath2D.prev_idx(idx_end_point, cur_contour) 
                 if (ori):
-                    idx_end_point = self.prev_idx(idx_end_point, cur_contour)
+                    idx_end_point = suPath2D.prev_idx(idx_end_point, cur_contour)
                 else:
-                    idx_end_point = self.next_idx(idx_end_point, cur_contour)                
+                    idx_end_point = suPath2D.next_idx(idx_end_point, cur_contour)                
         return idx_end_point    
-    ##############################################################
-    # @in: iso contours, index of start point, offset
-    # @out: a single poly
-    # If you want connect in then connect out,
-    # you can divide contours into two sets, and run it twice,
-    # then connect them.
-    ##############################################################
+    
     def contour2spiral(self, contours, idx_start_point, offset):
+        '''
+        Connect all contours of a pocket. The key idea is divide contours 
+        into two sets, and run the connection process twice, one for in
+        the other for out. Then connect them again.
+        @contours: iso contours, index of start point, offset
+        @idx_start_point: start connect at idx_start_point-th point on contours[0] 
+        '''
         offset = abs(offset)
         cc = [] # contour for return
         N = len(contours)
@@ -453,23 +458,29 @@ class pathEngine:
             contour1 = contours[i]        
             
             ## find end point(e1)
-            idx_end_point = self.find_point_index_by_distance(idx_start_point, contour1, 2*offset)
+            idx_end_point = self.find_point_index_by_distance(idx_start_point, contour1, offset)
             end_point = contour1[idx_end_point]
+            
             
             # add contour segment to cc
             idx = idx_start_point
             while idx != idx_end_point:
                 cc.append(contour1[idx])
-                idx = self.next_idx(idx, contour1)   
+                idx = suPath2D.next_idx(idx, contour1)   
             
             if(i == N-1): 
                 break
+            
+            #test
+            #cv2.circle(self.im, tuple(contours[i][idx_start_point].astype(int)), 5, (0,0,255), -1)             
+            #cv2.circle(self.im, tuple(contours[i][idx_start_point + 4].astype(int)), 5, (255,0,255), -1) 
             
             ## find s2   
             idx_start_point2 = self.find_nearest_point_idx(end_point, contours[i+1])         
             
             idx_start_point = idx_start_point2   
-            
+                            
+            #cv2.circle(self.im, tuple(contours[i][idx_end_point].astype(int)), 5, (255,0,0), -1)             
             
         return cc     
     
@@ -494,7 +505,7 @@ class pathEngine:
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
                 # resample and convert to np.array
-                iso_contours[i][j] = self.resample_curve_by_equal_dist(iso_contours[i][j], abs(offset)/4) 
+                iso_contours[i][j] = suPath2D.resample_curve_by_equal_dist(iso_contours[i][j], abs(offset)/4) 
                 if(i == 0):
                     iso_contours_2D.append(np.flip(iso_contours[i][j],0))
                 else:
@@ -560,8 +571,12 @@ class pathEngine:
         #fc1 from 0 to pid_c1
         for i in range(pid_c1+1):
             fc.append(fc1[i]) 
-        #fc2 from pid_c2 to end_point
+        #get returned index from fc2
         idx_end = self.find_nearest_point_idx(fc1[idx_offset], fc2)
+        if (idx_end == pid_c2):
+            print("-------------------------------------------")
+            idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)
+            
         idx = pid_c2
         if angle > 90:
             # different orientaton: 
@@ -590,10 +605,14 @@ class pathEngine:
         y2 = savgol_filter(y, filter_width, polynomial_order)
         c = np.transpose([x2,y2])
         return c    
-    # @iso_contours: input iso contours of a pocket
-    # return a spiral contour
+    # 
+    # 
     def build_spiral_for_pocket(self, iso_contours):
-        ## divide contours into two groups(by odd/even)
+        '''
+        Split contours into two groups(by odd/even), connect each then join these two spirals.
+        @iso_contours: input iso contours of a pocket  
+        return a spiral path
+        '''
         if (len(iso_contours) == 1):
             return iso_contours[0]        
         in_contour_groups = []
@@ -604,8 +623,8 @@ class pathEngine:
             else:
                 out_contour_groups.append(iso_contours[idx])
     
-    
-        cc_in = self.contour2spiral(in_contour_groups, 0, self.offset )
+        
+        cc_in = self.contour2spiral(in_contour_groups,0, self.offset )
         output_index = self.find_nearest_point_idx(in_contour_groups[0][0], out_contour_groups[0]) 
     
         cc_out = self.contour2spiral(out_contour_groups, output_index, self.offset )
@@ -616,7 +635,7 @@ class pathEngine:
         out_point_index = self.find_point_index_by_distance(0, in_contour_groups[0], self.offset)
         fspiral.append(in_contour_groups[0][out_point_index])   
         ## smooth withe filter size 3, order 1
-        fspiral = self.smooth_curve_by_savgol(fspiral, 3, 1)    
+        #fspiral = self.smooth_curve_by_savgol(fspiral, 3, 1)    
         return fspiral    
 
 ############################################################################################################
@@ -734,7 +753,7 @@ def test_fill_with_iso_contour(filepath, reverseImage = True):
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
     ret, mask = cv2.threshold(gray, 0, 255,cv2.THRESH_BINARY_INV |cv2.THRESH_OTSU)
     cv2.imshow("mask", mask)
-    cv2.imwrite("d:/tmp.png", pe.im)  
+    cv2.imwrite("r:/tmp.png", pe.im)  
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)             
 
