@@ -71,6 +71,16 @@ class suPath2D:
         if idx == len(contour) - 1:
             return 0
     @staticmethod
+    def next_idx_n(idx, n, contour):
+        for i in range(n):
+            idx = suPath2D.next_idx(idx, contour)
+        return idx
+    @staticmethod
+    def prev_idx_n(idx, n, contour):
+        for i in range(n):
+            idx = suPath2D.prev_idx(idx, contour)
+        return idx    
+    @staticmethod
     def unit_vector(vector):
         """ Returns the unit vector of the vector.  """
         return vector / np.linalg.norm(vector)  
@@ -568,8 +578,12 @@ class pathEngine:
         '''        
         pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
         # check orientation
-        nid_c1 = self.path2d.next_idx(pid_c1, fc1)
-        nid_c2 = self.path2d.next_idx(pid_c2, fc2)
+        # not precise, todo: use log func to estimate
+        n_forward = 1
+        if(len(fc1) > 1000 and len(fc2) > 1000):
+            n_forward = 1
+        nid_c1 = self.path2d.next_idx_n(pid_c1, n_forward, fc1)
+        nid_c2 = self.path2d.next_idx_n(pid_c2, n_forward,fc2)
         dir_fc1 = fc1[nid_c1] - fc1[pid_c1]
         dir_fc2 = fc2[nid_c2] - fc2[pid_c2]
         angle = suPath2D.angle_between(dir_fc1, dir_fc2)
@@ -577,12 +591,12 @@ class pathEngine:
         fc = []
         #find return point with distance to pid_c1 = offset
         idx_offset = self.find_point_index_by_distance(pid_c1, fc1, offset, 0)
-        
-        
+                
         
         #fc1 from 0 to pid_c1
-        for i in range(pid_c1+1):
-            fc.append(fc1[i]) 
+        #for i in range(pid_c1+1):
+            #fc.append(fc1[i]) 
+        fc = fc + list(fc1)[0:pid_c1+1]
         #get returned index from fc2
         idx_end = self.find_nearest_point_idx(fc1[idx_offset], fc2)
         
@@ -590,7 +604,12 @@ class pathEngine:
                 #print(">>>>")
                 #idx_end = suPath2D.next_idx(idx_end, fc2)
             #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (255,0,0)) 
-            
+        #test
+        #cv2.circle(self.im, tuple(fc1[nid_c1].astype(int)), 2, (0,0,255)) 
+        #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255)) 
+        #cv2.circle(self.im, tuple(fc2[nid_c2].astype(int)), 2, (0,255,255)) 
+        #cv2.circle(self.im, tuple(fc2[pid_c2].astype(int)), 2, (0,255,255))         
+        
         idx = pid_c2
         if angle > 90:
             # different orientaton: 
@@ -604,7 +623,7 @@ class pathEngine:
         else:
             if (idx_end == pid_c2):
                 #print("-------------------------------------------")
-                #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
+                
                 idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)            
             while idx != idx_end:  
                 fc.append(fc2[idx])

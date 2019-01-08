@@ -295,9 +295,13 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
                     msg = '{} insert {}'.format(i+1, ic+1)
                     print(msg)
                     #test
-                    #if (ic == 11):
-                        #print("debug")
+                    if (i==1 and ic==2):
+                        msg = "{}: {}, {}: {}".format(i, len(spirals[i]), ic, len(spirals[ic]))
+                        print(msg)
                     spirals[i] = pe.connect_two_pockets(spirals[i],spirals[ic], abs(offset))
+                    if (i==1 and ic==2):
+                        msg = "{}: {}, {}: {}".format(i, len(spirals[i]), ic, len(spirals[ic]))
+                        print(msg)                  
          
             return
         
@@ -310,7 +314,7 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         #test 
         #verts = []
         #cs = []
-        ll = []
+        ll =[]#[2,3]
         colors = pe.path2d.generate_RGB_list(len(ll))
         #k = 0
         #for jj in ll:
@@ -322,13 +326,16 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         #verts = np.array(verts).reshape([len(verts),2])
         #draw_pca_for_pocket(verts)
         # connect from botom 
-        spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 7, 1)
+        #spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 3, 1)
         path2d.draw_line(spirals[0], pe.im, [100,255,100],1)
-        #cv2.circle(pe.im, tuple(spirals[0][-1].astype(int)), 5, (0,0,255)) 
-        for l in range(len(ll)):
-            path2d.draw_line(spirals.get(ll[l]), pe.im, colors[l],1)
-            print(len(spirals.get(ll[l]) ) )
-        #path2d.draw_line(iso_contours_2D[62], pe.im, [255,0,0] ,1)            
+        #cv2.circle(pe.im, tuple(spirals[0][-1].astype(int)), 5, (0,0,255))
+        il = 0
+        for l in ll:
+            path2d.draw_line(spirals.get(l-1), pe.im, colors[il],1)
+            msg = "{}: {}".format(l-1, len(spirals[l-1]))
+            print(msg)  
+            il+=1
+        #path2d.draw_line(iso_contours_2D[33], pe.im, [0,0,255] ,1)            
         #path2d.draw_line(iso_contours_2D[47], pe.im, [255,0,0] ,1)            
         #path2d.draw_line(spirals.get(1), pe.im, [255,0,255],1)
         
@@ -358,5 +365,5 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/honeycomb.png", -4, False)
+    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -4, False)
     #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -8)
