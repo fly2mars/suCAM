@@ -114,8 +114,9 @@ class suPath2D:
        
         resample_size = size 
         N = int(contour_length / resample_size)
-        if (N < 50):
-            return np.asarray(contour)
+        if (N < 10):  #avoid lost in smooth
+            N = 10
+            resample_size = contour_length / 10
        
         dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
         cur_id = 0           # for concise
@@ -490,7 +491,9 @@ class pathEngine:
             #cv2.circle(self.im, tuple(contours[i][idx_start_point + 4].astype(int)), 5, (255,0,255), -1) 
             
             ## find s2   
-            idx_start_point2 = self.find_nearest_point_idx(end_point, contours[i+1])         
+            idx_start_point2 = self.find_nearest_point_idx(end_point, contours[i+1])  
+            # go forward a distance to avoid interference
+            idx_start_point2 = self.find_point_index_by_distance(idx_start_point2, contours[i+1], offset/2, 0)
             
             idx_start_point = idx_start_point2   
                             
@@ -514,7 +517,7 @@ class pathEngine:
         num_contours = 0       
         iso_contours_2D = []
         # contour distance threshold between adjacent layers
-        dist_th = abs(self.offset) * 1.1
+        dist_th = abs(self.offset) * 1.2
 
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
@@ -582,17 +585,27 @@ class pathEngine:
             fc.append(fc1[i]) 
         #get returned index from fc2
         idx_end = self.find_nearest_point_idx(fc1[idx_offset], fc2)
-        if (idx_end == pid_c2):
-            print("-------------------------------------------")
-            idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)
+        
+            #if (idx_end == pid_c2):
+                #print(">>>>")
+                #idx_end = suPath2D.next_idx(idx_end, fc2)
+            #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (255,0,0)) 
             
         idx = pid_c2
         if angle > 90:
             # different orientaton: 
+            if (idx_end == pid_c2):
+                #print("-------------------------------------------")
+                #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
+                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 1)            
             while idx != idx_end:  
                 fc.append(fc2[idx])
                 idx = self.path2d.next_idx(idx, fc2)            
         else:
+            if (idx_end == pid_c2):
+                #print("-------------------------------------------")
+                #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
+                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)            
             while idx != idx_end:  
                 fc.append(fc2[idx])
                 idx = self.path2d.prev_idx(idx, fc2)            
