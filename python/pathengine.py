@@ -632,9 +632,10 @@ class pathEngine:
         
         fc.append(fc2[idx_end])
         
-        while idx_offset != 0:
+        while idx_offset != 0:        
             fc.append(fc1[idx_offset])
             idx_offset = self.path2d.next_idx(idx_offset, fc1)            
+        #fc = fc + list(fc1[idx_offset:])
             
         return np.asarray(fc)    
     def smooth_curve_by_savgol(self, c, filter_width=5, polynomial_order=1):

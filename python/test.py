@@ -365,5 +365,5 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -4, False)
+    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -8, False)
     #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -8)
