@@ -100,7 +100,7 @@ class suPath2D:
         return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)) / math.pi * 180
       
     @staticmethod
-    def resample_curve_by_equal_dist(contour, size, is_open = False):
+    def resample_curve_by_equal_dist(contour, size=2, is_open = False):
         '''
         Resample a curve by Roy's method
         Refer to "http://www.morethantechnical.com/2012/12/07/resampling-smoothing-and-interest-points-of-curves-via-css-in-opencv-w-code/"
@@ -122,7 +122,7 @@ class suPath2D:
             d = np.linalg.norm(contour[0] - contour[-1])
             contour_length += d
        
-        resample_size = size 
+        resample_size = 2 #size 
         N = int(contour_length / resample_size)
         if (N < 10):  #avoid lost in smooth
             N = 10
@@ -576,12 +576,20 @@ class pathEngine:
            fc1:    pid_c1(closest)         goning forward with distance offset (from start)
            fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
         '''        
-        pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
+        # Firstval, use the original start and end point of fc1
+        pid_c2 = len(fc2) - 1
+        #pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
+        
+        pid_c1 = self.find_nearest_point_idx(fc2[pid_c2], fc1)
+        d = np.linalg.norm(fc1[pid_c1]-fc2[pid_c2])
+        if(d > 2*offset):
+            pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
+        
         # check orientation
         # not precise, todo: use log func to estimate
         n_forward = 1
-        if(len(fc1) > 1000 and len(fc2) > 1000):
-            n_forward = 1
+        #if(len(fc1) > 1000 and len(fc2) > 1000):
+            #n_forward = 1
         nid_c1 = self.path2d.next_idx_n(pid_c1, n_forward, fc1)
         nid_c2 = self.path2d.next_idx_n(pid_c2, n_forward,fc2)
         dir_fc1 = fc1[nid_c1] - fc1[pid_c1]
@@ -607,8 +615,8 @@ class pathEngine:
         #test
         #cv2.circle(self.im, tuple(fc1[nid_c1].astype(int)), 2, (0,0,255)) 
         #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255)) 
-        #cv2.circle(self.im, tuple(fc2[nid_c2].astype(int)), 2, (0,255,255)) 
-        #cv2.circle(self.im, tuple(fc2[pid_c2].astype(int)), 2, (0,255,255))         
+        cv2.circle(self.im, tuple(fc2[0].astype(int)), 3, (0,0,255)) 
+        cv2.circle(self.im, tuple(fc2[-1].astype(int)), 3, (0,0,255))         
         
         idx = pid_c2
         if angle > 90:
@@ -705,9 +713,9 @@ class pathEngine:
     
         #test
         start_id = 0
-        ratio, entrance_id = pathEngine.check_pocket_ratio_by_pca(in_contour_groups, self.offset)        
-        if(ratio > 0.5):
-            start_id = entrance_id
+        #ratio, entrance_id = pathEngine.check_pocket_ratio_by_pca(in_contour_groups, self.offset)        
+        #if(ratio > 0.5):
+            #start_id = entrance_id
         #cv2.circle(self.im, tuple(in_contour_groups[0][start_id].astype(int)), 5, (0,0,255)) 
         
         cc_in = self.contour2spiral(in_contour_groups,start_id, self.offset )
