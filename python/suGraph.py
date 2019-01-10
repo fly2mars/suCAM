@@ -6,6 +6,7 @@ class suNode():
         self.pre = []
         self.next = []
         self.data = []
+        self.type = -1
         self.pocket_id = -1      # for connection between pocket   
        
     def get_number_of_path(self):
@@ -66,26 +67,32 @@ class suGraph():
         ori_node = self.nodes[i]
         edges = ori_node.pre + ori_node.next
         
+        # root node
         if(parent_id == -1):
             node = suNode()
             node.data.append(i)
             nodes.append(node)   
         # make a new node for type-II
-        if(len(edges) > 2):
+        #if(len(edges) > 2):
+        if(ori_node.type == 2):   # set in to_reverse_delete_MST
             node = suNode()
             node.data.append(i)
             node.pre = [ parent_id ]
             nodes[parent_id].next.append(len(nodes))
             nodes.append(node)
+            
         # combine node for type-I
-        if(len(edges) <= 2 and parent_id != -1):
+        #if(len(edges) <= 2 and parent_id != -1):
+        if(ori_node.type != 2 and parent_id != -1):
             nodes[-1].data.append(i)
+      
     
         
         cur_id = len(nodes) - 1 
         for j in edges:            
             if visited[j] == 0:
-                if (len(edges)  > 2) and (self.nodes[j].get_number_of_path() <= 2):
+                #if (len(edges)  > 2) and (self.nodes[j].get_number_of_path() <= 2):
+                if (ori_node.type == 2 and self.nodes[j].type != 2):
                     #make one node for each pocket you want to combine
                     node = suNode()
                     node.pre.append(cur_id)
@@ -120,21 +127,26 @@ class suGraph():
             return True
         return False
     
-    # Use a reverse delete mehtod to construct minimum-weight spanning tree
-    # The diffence are:
+    
+    def to_reverse_delete_MST(self):
+        '''
+        Use a reverse delete mehtod to construct minimum-weight spanning tree
+        The diffences are:
     #    1. Only the type-II nodes are considered to be deleted
     #    2. We don't use the distance as a weight, because all neighbored  
     #       iso-contours have the similar distance. We remove an edge then
     #       test if the graph is still connected
-    def to_reverse_delete_MST(self):
+        '''
         self.get_matrix_from_graph()
         
+        nodes_type = {}
         #Matrix = self.matrix
         for i in range(len(self.nodes) ):
             ids = np.argwhere(self.matrix.T[i] == 1)
             pre = ids.reshape(len(ids))
             #only for type-II
-            if len(self.nodes[i].pre) > 1:                
+            if len(self.nodes[i].pre) > 1:  
+                nodes_type[i] = 2
                 for idx in pre:
                     #remove idx and check connectivity of graph
                     self.matrix[idx][i] = 0
@@ -143,8 +155,14 @@ class suGraph():
                     if(not self.is_connected()):
                         #print("Not connected")
                         self.matrix[idx][i] = 1
-           
+            else:
+                if(len(self.nodes[i].pre + self.nodes[i].next) > 2):
+                    nodes_type[i] = 2
+        #some information, like node type, is lost in this procedure
         self.init_from_matrix(self.matrix)      
+        #so we need to rebuild the type info
+        for i in nodes_type.keys():
+            self.nodes[i].type = nodes_type[i]
         return
 
     def clear(self):
