@@ -36,7 +36,8 @@ class suPath2D:
         self.group_relationship_matrix = []
         
         return 
-    def get_contour_id(self,i,j,iso_contours):
+    @staticmethod
+    def get_contour_id(i,j,iso_contours):
         '''
         Get a 1D global index from iso_contours list contour(i,j), where
         i is the distance to the boundary, there are many contours(j=0...n-1).  
@@ -98,7 +99,29 @@ class suPath2D:
         v1_u = suPath2D.unit_vector(v1)
         v2_u = suPath2D.unit_vector(v2)
         return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)) / math.pi * 180
-      
+    
+    @staticmethod
+    def find_distance_matrix(cs):
+        '''
+        compute distance matrix and min distance among a group of contours
+        return distance matrix and the index of the min value
+        
+        example:
+             D, i,j= find_distance_matrix(contours)
+        '''
+        n = len(cs)
+        D = np.zeros([n,n])
+        d = float("inf")
+        idx_i, idx_j = 0, 0
+        
+        for i in range(n):
+            for j in range(n):
+                if(i != j):
+                    t1,t2,D[i][j] = suPath2D.find_closest_point_pair(cs[i],cs[j])
+                    if D[i][j] < d:
+                        d = D[i][j]
+                        idx_i, idx_j = i, j
+        return D, idx_i, idx_j          
     @staticmethod
     def resample_curve_by_equal_dist(contour, size=2, is_open = False):
         '''
@@ -126,7 +149,7 @@ class suPath2D:
         N = int(contour_length / resample_size)
         if (N < 10):  #avoid lost in smooth
             N = 10
-            resample_size = contour_length / 10
+            resample_size = contour_length / 4
        
         dist = 0             # dist = cur_dist_to_next_original_point + last_original_dist
         cur_id = 0           # for concise
@@ -165,14 +188,14 @@ class suPath2D:
         Return two indice of the closest pair of points.
         
         example:
-            id1, id2 = find_closest_point_pair(c1,c2)
+            id1, id2, min_d = find_closest_point_pair(c1,c2)
         '''
         dist = scid.cdist(c1, c2, 'euclidean')
         min_dist = np.min(dist)    
         gId = np.argmin(dist)
         pid_c1 = int(gId / dist.shape[1])
         pid_c2 = gId - dist.shape[1] * pid_c1            
-        return pid_c1, pid_c2
+        return pid_c1, pid_c2, min_dist
     ####################################
     # draw poly line to image #
     # point_list is n*2 np.ndarray #
@@ -202,7 +225,8 @@ class suPath2D:
     #################################
     # Generate N color list
     #################################
-    def generate_RGB_list(self, N):
+    @staticmethod
+    def generate_RGB_list(N):
         import colorsys
         HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
         RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
@@ -527,12 +551,15 @@ class pathEngine:
         num_contours = 0       
         iso_contours_2D = []
         # contour distance threshold between adjacent layers
-        dist_th = abs(self.offset) * 1.2
+        dist_th = abs(self.offset) * 1.2  
+        inter_size = abs(self.offset)/6
+        if inter_size < 4:
+            inter_size = 4
 
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
                 # resample and convert to np.array
-                inter_size = abs(self.offset)/4
+                
                 iso_contours[i][j] = suPath2D.resample_curve_by_equal_dist(iso_contours[i][j], inter_size) 
                 if(i == 0):
                     iso_contours_2D.append(np.flip(iso_contours[i][j],0))
@@ -540,22 +567,22 @@ class pathEngine:
                     iso_contours_2D.append(iso_contours[i][j])                
 
                 #map_ij.append([i,j])
-                num_contours += 1         
+                num_contours += 1       
+        
         # @R is the relationship matrix
         R = np.zeros((num_contours, num_contours)).astype(int)    
         i = 0
         for cs in iso_contours[:-1]:     # for each group contour[i], where i*offset reprents the distance from boundaries      
             j1 = 0           
             for c1 in cs:               
-                c1_id = self.path2d.get_contour_id(i, j1, iso_contours)  
+                c1_id = suPath2D.get_contour_id(i, j1, iso_contours)  
 
                 j2 = 0
                 for c2 in iso_contours[i+1]:
                     dist = scid.cdist(c1, c2, 'euclidean')
                     min_dist = np.min(dist)
-                    #print(dist)
                     if(min_dist < dist_th):
-                        c2_id = self.path2d.get_contour_id(i+1, j2, iso_contours)
+                        c2_id = suPath2D.get_contour_id(i+1, j2, iso_contours)
                         R[c1_id][c2_id] = 1
 
                     j2 += 1
@@ -564,10 +591,32 @@ class pathEngine:
         #visualize
         graph = suGraph.suGraph()  
         graph.init_from_matrix(R)
-
+        
+        
         return iso_contours_2D, graph    
     
-    
+    def reconnect_from_leaf_node(self, graph, iso_contours, dist_thresh):
+        '''
+        if graph not connected, find new edge from leaf nodes.
+        return true if the re-connection is successful
+        example:
+            ret = reconnect_from_lear_node(graph, iso_contours)
+        '''
+        layer = range(len(iso_contours)-1)
+        layer = list(layer)
+        layer.reverse()
+        for l in layer: # check from leaf nodes
+            cs = iso_contours[l]
+            D, i, j = suPath2D.find_distance_matrix(cs)
+            if(D[i,j] < dist_thresh):
+                global_ind_i = suPath2D.get_contour_id(l, i, iso_contours)
+                global_ind_j = suPath2D.get_contour_id(l, j, iso_contours)
+                graph.nodes[global_ind_i].next.append(global_ind_j)
+                graph.nodes[global_ind_j].pre.append (global_ind_i)
+                graph.update_matrix()
+                if(graph.is_connected()):                
+                    return True
+        return  False    
     def connect_two_pockets(self, fc1, fc2, offset):
         '''
         connect to the next contour then going back
@@ -583,7 +632,7 @@ class pathEngine:
         pid_c1 = self.find_nearest_point_idx(fc2[pid_c2], fc1)
         d = np.linalg.norm(fc1[pid_c1]-fc2[pid_c2])
         if(d > 2*offset):
-            pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
+            pid_c1, pid_c2, min_d = suPath2D.find_closest_point_pair(fc1,fc2)
         
         # check orientation
         # not precise, todo: use log func to estimate
@@ -658,8 +707,7 @@ class pathEngine:
         c = np.vstack((c,last_vert))
             
         return c    
-    # 
-    # 
+   
     @staticmethod
     def check_pocket_ratio_by_pca(cs,offset=4):
         '''
@@ -692,7 +740,7 @@ class pathEngine:
         ax1.append(pca.mean_)
         ax1.append(pca.mean_ + v[1])
         ax1 = suPath2D.resample_curve_by_equal_dist(ax1, abs(offset)/2)
-        pid_c1, pid_c2 = suPath2D.find_closest_point_pair(cs[0],ax1)
+        pid_c1, pid_c2, d = suPath2D.find_closest_point_pair(cs[0],ax1)
         
         return ratio, pid_c1    
     def build_spiral_for_pocket(self, iso_contours):

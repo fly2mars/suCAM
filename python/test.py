@@ -5,6 +5,9 @@ import cv2
 import numpy as np
 import scipy.spatial.distance as scid
 import suGraph
+
+#vis debug
+colors = pathengine.suPath2D.generate_RGB_list(100)
 '''
 test hausdorff distanse in  construct graph on iso-contours
 '''
@@ -247,6 +250,9 @@ def draw_pca_for_pocket(verts):
     plt.show()
     return
 
+
+        
+
 # How to generate continuous
 #
 def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = True):
@@ -270,6 +276,16 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours) 
         
         graph.to_Mathematica("")
+        
+        
+                
+        if not graph.is_connected():
+            print("not connected")
+            ret = pe.reconnect_from_leaf_node(graph, iso_contours, abs(offset * 1.2))
+            if(ret):
+                print("re-connect...")
+                graph.to_Mathematica("")
+        
         # generate a minimum-weight spanning tree
         graph.to_reverse_delete_MST()
         graph.to_Mathematica("")
@@ -306,16 +322,16 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
             return
         
         dfs_connect_path_from_bottom(0, pocket_graph.nodes, iso_contours_2D, spirals, offset)       
-                #cs = []
-                #for i in node.data:
-                    #cs.append(iso_contours_2D[i])
-                #if(len(cs) !=0):
-                    #spiral = pe.build_spiral_for_pocket(cs)   
+        #cs = []
+        #for i in node.data:
+            #cs.append(iso_contours_2D[i])
+        #if(len(cs) !=0):
+            #spiral = pe.build_spiral_for_pocket(cs)   
         #test 
         #verts = []
         #cs = []
         ll =[]#[2,3]
-        colors = pe.path2d.generate_RGB_list(len(spirals))
+        
         #k = 0
         #for jj in ll:
             #path2d.draw_line(iso_contours_2D[jj], pe.im, colors[k],1)
@@ -325,21 +341,22 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
                 #verts.append(p)
         #verts = np.array(verts).reshape([len(verts),2])
         #draw_pca_for_pocket(verts)
-        # connect from botom 
-        spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 3, 1)
-        path2d.draw_line(spirals[0], pe.im, [100,255,100],1)
+        
+        
         #cv2.circle(pe.im, tuple(spirals[0][-1].astype(int)), 5, (0,0,255))
-        il = 0
-        for l in ll:
-            path2d.draw_line(spirals.get(l-1), pe.im, colors[il],1)
-            msg = "{}: {}".format(l-1, len(spirals[l-1]))
-            print(msg)  
-            il+=1
+        #il = 0
+        #for l in ll:
+            #path2d.draw_line(spirals.get(l-1), pe.im, colors[il],1)
+            #msg = "{}: {}".format(l-1, len(spirals[l-1]))
+            #print(msg)  
+            #il+=1
+        #for i in range(len(iso_contours_2D)):
+            #path2d.draw_line(iso_contours_2D[i], pe.im, colors[i] ,1)            
         #path2d.draw_line(iso_contours_2D[33], pe.im, [0,0,255] ,1)            
         #path2d.draw_line(iso_contours_2D[47], pe.im, [255,0,0] ,1)            
         #path2d.draw_line(spirals.get(1), pe.im, [255,0,255],1)
-        for i in range(len(spirals)):
-            path2d.draw_line(spirals[i], pe.im, colors[i],1)
+        #for i in range(len(spirals)):
+            #path2d.draw_line(spirals[i], pe.im, colors[i],1)
         
        
         #sptmp = pe.build_spiral_for_pocket(cs)         
@@ -347,6 +364,8 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
         #path2d.draw_line(spirals.get(9), pe.im, [0,0,255],1)
         #path2d.draw_line(spirals.get(5), pe.im, [0,255,0],1)
         #path2d.draw_line(spirals[7], pe.im, [255,255,0],1)
+        spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 3, 1)
+        path2d.draw_line(spirals[0], pe.im, [100,255,100],1)        
         iB += 1
     
         #graph.connect_node_by_spiral(spirals)
@@ -366,5 +385,5 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -10, False)
+    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -28, False)
     #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice-1.png", -12)

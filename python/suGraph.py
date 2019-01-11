@@ -46,7 +46,8 @@ class suGraph():
             node = self.nodes[i]
             M[i][node.next] = 1
         return M.astype(int)
-    
+    def update_matrix(self):
+        self.matrix = self.get_matrix_from_graph()
     # generate pocket graph by using dfs_combine_tree()
     def gen_pockets_graph(self):
         nodes = []
