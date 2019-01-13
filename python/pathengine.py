@@ -87,19 +87,24 @@ class suPath2D:
         return vector / np.linalg.norm(vector)  
     @staticmethod
     def angle_between(v1, v2):
-        """ Returns the angle in radians between vectors 'v1' and 'v2'
+        """ 
+        Returns the angle in dgree between vectors 'v1' and 'v2'
     
-                >>> angle_between((1, 0, 0), (0, 1, 0))
-                1.5707963267948966
-                >>> angle_between((1, 0, 0), (1, 0, 0))
-                0.0
-                >>> angle_between((1, 0, 0), (-1, 0, 0))
-                3.141592653589793
+        example:
+            angle_between((1, 0, 0), (0, 1, 0))
+            90.0
+            angle_between((1, 0, 0), (1, 0, 0))
+            0.0            
         """
         v1_u = suPath2D.unit_vector(v1)
         v2_u = suPath2D.unit_vector(v2)
         return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0)) / math.pi * 180
     
+    @staticmethod
+    def convto_cw(contours):
+        for i in range(len(contours)):
+            if( suPath2D.ccw(contours[i]) ):
+                contours[i] = np.flip(contours[i], 0)
     @staticmethod
     def find_distance_matrix(cs):
         '''
@@ -145,7 +150,7 @@ class suPath2D:
             d = np.linalg.norm(contour[0] - contour[-1])
             contour_length += d
        
-        resample_size = 2 #size 
+        resample_size = size 
         N = int(contour_length / resample_size)
         if (N < 10):  #avoid lost in smooth
             N = 10
@@ -196,11 +201,15 @@ class suPath2D:
         pid_c1 = int(gId / dist.shape[1])
         pid_c2 = gId - dist.shape[1] * pid_c1            
         return pid_c1, pid_c2, min_dist
-    ####################################
-    # draw poly line to image #
-    # point_list is n*2 np.ndarray #
-    ####################################
-    def draw_line(self, point_lists, img, color, line_width=1, point_size=0):
+
+    @staticmethod
+    def draw_line(point_lists, img, color, line_width=1, point_size=0):
+        '''
+        draw poly line to image 
+        point_list is a np.ndarray with shape of (n,2)
+        example:
+           suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)
+        '''
         if point_lists == None or len(point_lists) == 0:
             return
         point_lists = point_lists.astype(int)
@@ -211,7 +220,11 @@ class suPath2D:
             for p in point_lists:
                 cv2.circle(img, tuple(p), point_size, color)   
         return
-    def draw_text(self, text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, lineType=1):
+    def draw_text(text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, lineType=1):
+        '''
+        example:
+           suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)
+        '''
         font                   = cv2.FONT_HERSHEY_SIMPLEX
         fontSize               = [12,-12]
         offset = bottom_left - np.array(fontSize)*fontScale
@@ -222,17 +235,33 @@ class suPath2D:
             fontColor,
             lineType)
         return
-    #################################
-    # Generate N color list
-    #################################
+
     @staticmethod
     def generate_RGB_list(N):
+        '''
+        Generate N color list
+        '''
         import colorsys
         HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
         RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
         rgb_list = tuple(RGB_tuples)
         return np.array(rgb_list) * 255   
     
+    @staticmethod
+    def ccw(contour):
+        '''
+        check a contour is (counter clockwise)CCW or CW
+        return CCW: True   CW: False
+        refer to https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
+        Here we use openCV image coordinate, like HTML5 canvas
+        '''
+        l = np.asarray(contour)
+        ls = np.roll(l, -1, axis=0)
+        
+        a = np.sum( (ls[:,0] - l[:,0])*(ls[:,1] + l[:,1]) )
+        if a<0:
+            return False
+        return True
     
 class pathEngine:
     def __init__(self):
@@ -317,24 +346,26 @@ class pathEngine:
         self.root_of_region_contour = root
         return root  
    
-    ################################################################################
-    # for each seperated region on a slice
-    #  - return contour group to reprent boundaries of a region
-    # The seperated region means a region with connected area.
-    # @polyTreeNode is used to hold region boundary. Typically, the boundaries
-    #               stored in the current node represent external contours, and
-    #               the contours stored in the child nodes represent the internal
-    #               contours, such as holes. If child nodes have their own children
-    #               that will represent new seperated regions. We can deal these cases
-    #               by the recursive process.
-    # @sId is the id of polyTreeNode, eg. 0(root), 0-1(first child of root),
-    #               0-1-2(second gradson of root)
-    # @return a dict, @contour_group, each key-value represents a seperate regon KEY
-    #              and its boundary contours.
-    # examples:    contour_group = get_contours_from_each_connected_region(root, '0')
-    #              contour_group = get_contours_from_each_connected_region(node, '0-1-1')
-    ################################################################################
+
     def get_contours_from_each_connected_region(self, polyTreeNode, sId = '0'):
+        '''
+        for each seperated region on a slice
+        - return contour group to reprent boundaries of a connected region
+          each seperated region represents a region with connected area.
+        @polyTreeNode is used to hold region boundary. Typically, the boundaries
+                    stored in the current node represent external contours, and
+                    the contours stored in the child nodes represent the internal
+                    contours, such as holes. If child nodes have their own children
+                    that will represent new seperated regions. We can deal these cases
+                    by the recursive process.
+        @sId is the id of polyTreeNode, eg. 0(root), 0-1(first child of root),
+                    0-1-2(second grandson of root)
+        @return a dict, @contour_group, each key-value represents a seperate regon KEY
+                    and its boundary contours.
+        
+        examples:   contour_group = get_contours_from_each_connected_region(root, '0')
+                    contour_group = get_contours_from_each_connected_region(node, '0-1-1')
+        '''
         root = polyTreeNode
         contour_group = {}  # eg. contour_group[id] holds all inner and outter contours in a seperated region.
         nDeep = sId.count('-')                       
@@ -436,18 +467,7 @@ class pathEngine:
             contours = pco.Execute(offset)           
             iso_contours_of_a_region.append( contours)
         return iso_contours_of_a_region
-    #def prev_idx(self, idx, contour):   
-        #if idx > 0:
-            #return idx - 1;
-        #if idx == 0:
-            #return len(contour) -1
-   
-    #def next_idx(self, idx, contour):
-        #if idx < len(contour)-1:
-            #return idx + 1
-        #if idx == len(contour) - 1:
-            #return 0   
-    
+
    
     #######################################
     # find nearest index of point in a contour
@@ -561,14 +581,15 @@ class pathEngine:
                 # resample and convert to np.array
                 
                 iso_contours[i][j] = suPath2D.resample_curve_by_equal_dist(iso_contours[i][j], inter_size) 
-                if(i == 0):
-                    iso_contours_2D.append(np.flip(iso_contours[i][j],0))
-                else:
-                    iso_contours_2D.append(iso_contours[i][j])                
+                iso_contours_2D.append(iso_contours[i][j])
+                #if(i == 0):
+                    #iso_contours_2D.append(np.flip(iso_contours[i][j],0))
+                #else:
+                    #iso_contours_2D.append(iso_contours[i][j])                
 
                 #map_ij.append([i,j])
                 num_contours += 1       
-        
+        suPath2D.convto_cw(iso_contours_2D)
         # @R is the relationship matrix
         R = np.zeros((num_contours, num_contours)).astype(int)    
         i = 0
@@ -625,12 +646,14 @@ class pathEngine:
            fc1:    pid_c1(closest)         goning forward with distance offset (from start)
            fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
         '''        
-        # Firstval, use the original start and end point of fc1
+        # Firstval, use the original start and end point of fc2
         pid_c2 = len(fc2) - 1
         #pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
         
         pid_c1 = self.find_nearest_point_idx(fc2[pid_c2], fc1)
         d = np.linalg.norm(fc1[pid_c1]-fc2[pid_c2])
+        #test
+        d = 3*offset
         if(d > 2*offset):
             pid_c1, pid_c2, min_d = suPath2D.find_closest_point_pair(fc1,fc2)
         
@@ -664,8 +687,8 @@ class pathEngine:
         #test
         #cv2.circle(self.im, tuple(fc1[nid_c1].astype(int)), 2, (0,0,255)) 
         #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255)) 
-        cv2.circle(self.im, tuple(fc2[0].astype(int)), 3, (0,0,255)) 
-        cv2.circle(self.im, tuple(fc2[-1].astype(int)), 3, (0,0,255))         
+        #cv2.circle(self.im, tuple(fc2[0].astype(int)), 3, (0,0,255)) 
+        #cv2.circle(self.im, tuple(fc2[-1].astype(int)), 3, (0,0,255))         
         
         idx = pid_c2
         if angle > 90:
@@ -689,12 +712,89 @@ class pathEngine:
         
         fc.append(fc2[idx_end])
         
-        while idx_offset != 0:        
-            fc.append(fc1[idx_offset])
-            idx_offset = self.path2d.next_idx(idx_offset, fc1)            
-        #fc = fc + list(fc1[idx_offset:])
+        #while idx_offset != 0:        
+            #fc.append(fc1[idx_offset])
+            #idx_offset = self.path2d.next_idx(idx_offset, fc1)            
+        fc = fc + list(fc1[idx_offset:])
             
-        return np.asarray(fc)    
+        return np.asarray(fc)   
+    def test_connect_two_pockets(self, fc1, fc2, offset):
+        '''
+        connect to the next contour then going back
+        connect points:
+                        start                    end
+           fc1:    pid_c1(closest)         goning forward with distance offset (from start)
+           fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
+        '''        
+        # Firstval, use the original start and end point of fc2
+        pid_c2 = len(fc2) - 1
+        #pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
+        
+        pid_c1 = self.find_nearest_point_idx(fc2[pid_c2], fc1)
+        d = np.linalg.norm(fc1[pid_c1]-fc2[pid_c2])
+        #test
+        d = 3*offset
+        if(d > 2*offset):
+            pid_c1, pid_c2, min_d = suPath2D.find_closest_point_pair(fc1,fc2)
+        
+        # check orientation
+        # not precise, todo: use log func to estimate
+        n_forward = 1
+        #if(len(fc1) > 1000 and len(fc2) > 1000):
+            #n_forward = 1
+        nid_c1 = self.path2d.next_idx_n(pid_c1, n_forward, fc1)
+        nid_c2 = self.path2d.next_idx_n(pid_c2, n_forward,fc2)
+        dir_fc1 = fc1[nid_c1] - fc1[pid_c1]
+        dir_fc2 = fc2[nid_c2] - fc2[pid_c2]
+        angle = suPath2D.angle_between(dir_fc1, dir_fc2)
+        
+        fc = []
+        #find return point with distance to pid_c1 = offset
+        pid_c1_return = self.find_point_index_by_distance(pid_c1, fc1, offset, 0)
+                
+        
+        #fc1 from 0 to pid_c1
+        #for i in range(pid_c1+1):
+            #fc.append(fc1[i]) 
+        fc = fc + list(fc1)[0:pid_c1+1]
+        #get returned index from fc2
+        idx_end = self.find_nearest_point_idx(fc1[pid_c1_return], fc2)
+        
+            #if (idx_end == pid_c2):
+                #print(">>>>")
+                #idx_end = suPath2D.next_idx(idx_end, fc2)
+            #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (255,0,0)) 
+        #test
+        #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255)) 
+        #cv2.circle(self.im, tuple(fc1[pid_c1_return].astype(int)), 2, (255,0,255)) 
+        #cv2.circle(self.im, tuple(fc2[pid_c2].astype(int)), 3, (0,0,255)) 
+        #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 3, (0,0,255))         
+        
+        idx = pid_c2
+        if angle > 90:
+            # different orientaton: 
+            if (idx_end == pid_c2):
+                #print("-------------------------------------------")
+                #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
+                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 1)            
+            while idx != idx_end:  
+                fc.append(fc2[idx])
+                idx = self.path2d.next_idx(idx, fc2)            
+        else:
+            if (idx_end == pid_c2):
+                #print("-------------------------------------------")
+                
+                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)            
+            while idx != idx_end:  
+                fc.append(fc2[idx])
+                idx = self.path2d.prev_idx(idx, fc2)            
+                
+        
+        fc.append(fc2[idx_end])
+        # 3        
+        fc = fc + list(fc1[pid_c1_return:])
+            
+        return np.asarray(fc)        
     def smooth_curve_by_savgol(self, c, filter_width=5, polynomial_order=1):
         #N = 10
         last_vert = c[-1]
@@ -785,36 +885,6 @@ class pathEngine:
         ## smooth withe filter size 3, order 1
         #fspiral = self.smooth_curve_by_savgol(fspiral, 3, 1)    
         return np.array(fspiral)    
-
-############################################################################################################
-#                         Test Functions                                                                   #   
-############################################################################################################   
-####################################
-# draw poly line to image #
-# point_list is n*2 np.ndarray #
-####################################
-def draw_line(point_lists, img, color, line_width=1, point_size=0):
-    point_lists = point_lists.astype(int)
-    pts = point_lists.reshape((-1,1,2))
-    cv2.polylines(img, [pts], False, color, thickness=line_width, lineType=cv2.LINE_AA)
-    #cv2.imshow("Art", img)
-    if point_size != 0:
-        for p in point_lists:
-            cv2.circle(img, tuple(p), point_size, color)   
-    return
-def draw_text(text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, lineType=1):
-    font                   = cv2.FONT_HERSHEY_SIMPLEX
-    fontSize               = [12,-12]
-    offset = bottom_left - np.array(fontSize)*fontScale
-    cv2.putText(img,text,
-        tuple(offset.astype(int)) ,
-        font,
-        fontScale,
-        fontColor,
-        lineType)
-    return
-
-
            
 ############################
 # compute hausdorff distance
@@ -896,7 +966,7 @@ def test_fill_with_iso_contour(filepath, reverseImage = True):
         idx = 0
         for cs in iso_contours:
             for c in cs:
-                draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width)
+                suPath2D.draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width)
             idx += 1
     gray = cv2.cvtColor(pe.im, cv2.COLOR_BGR2GRAY)
     ret, mask = cv2.threshold(gray, 0, 255,cv2.THRESH_BINARY_INV |cv2.THRESH_OTSU)
