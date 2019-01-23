@@ -43,6 +43,12 @@ class ModelInfo():
                     self.real_pixel_size_x, self.real_pixel_size_y, self.gcode_minx, self.gcode_miny)
         
         return info
+    
+    def set_layers(self, nLayers):
+        height = self.maxz - self.minz
+        self.layer_thickness = height / nLayers
+        self.first_layer_thickness = self.layer_thickness 
+        
         
     def set_image_size(self):
         w = self.maxx - self.minx

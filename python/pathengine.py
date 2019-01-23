@@ -136,7 +136,7 @@ class suPath2D:
         @size: sample size on the contour
         @is_open: True means openned polyline, False means closed polylien
         example:
-             c = suPath2D.resample_curve_by_equal_dist( c, nSample)     
+             c = suPath2D.resample_curve_by_equal_dist( c, offset)     
         '''
         resample_c = []
         ## compute length of contour
@@ -758,7 +758,7 @@ class pathEngine:
             #fc.append(fc1[i]) 
         fc = fc + list(fc1)[0:pid_c1+1]
         #get returned index from fc2
-        idx_end = self.find_nearest_point_idx(fc1[pid_c1_return], fc2)
+        pid_c2_near_return = self.find_nearest_point_idx(fc1[pid_c1_return], fc2)
         
             #if (idx_end == pid_c2):
                 #print(">>>>")
@@ -773,24 +773,24 @@ class pathEngine:
         idx = pid_c2
         if angle > 90:
             # different orientaton: 
-            if (idx_end == pid_c2):
+            if (pid_c2_near_return == pid_c2):
                 #print("-------------------------------------------")
                 #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
-                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 1)            
-            while idx != idx_end:  
+                pid_c2_near_return = self.find_point_index_by_distance(pid_c2_near_return, fc2, offset, 1)            
+            while idx != pid_c2_near_return:  
                 fc.append(fc2[idx])
                 idx = self.path2d.next_idx(idx, fc2)            
         else:
-            if (idx_end == pid_c2):
+            if (pid_c2_near_return == pid_c2):
                 #print("-------------------------------------------")
                 
-                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)            
-            while idx != idx_end:  
+                pid_c2_near_return = self.find_point_index_by_distance(pid_c2_near_return, fc2, offset, 0)            
+            while idx != pid_c2_near_return:  
                 fc.append(fc2[idx])
                 idx = self.path2d.prev_idx(idx, fc2)            
                 
         
-        fc.append(fc2[idx_end])
+        fc.append(fc2[pid_c2_near_return])
         # 3        
         fc = fc + list(fc1[pid_c1_return:])
             

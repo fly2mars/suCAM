@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import scipy.spatial.distance as scid
 import suGraph
+import css
 
 #vis debug
 colors = pathengine.suPath2D.generate_RGB_list(100)
@@ -314,17 +315,18 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
             #path2d.draw_line(spirals[i], pe.im, [255,255,0],1)
             if(len(node.next) > 0): 
                 for ic in node.next:
-                    dfs_connect_path_from_bottom(ic, nodes, iso_contours_2D, spirals, offset)
-                    msg = '{} insert {}'.format(i+1, ic+1)
-                    print(msg)
-                    #test
-                    if (i==6 and ic==7):
-                        msg = "{}: {}, {}: {}".format(i, len(spirals[i]), ic, len(spirals[ic]))
-                        print(msg)
+                    dfs_connect_path_from_bottom(ic, nodes, iso_contours_2D, spirals, offset)                    
+                   
+                    if(ic == 22 and i == 18):
+                        print("debug")
                     if (len(spirals[ic]) / len(spirals[i]) > 2):
                         spirals[i] = pe.test_connect_two_pockets(spirals[ic],spirals[i], abs(offset))
+                        msg = '{} insert {}'.format(ic+1, i+1)
+                        print(msg)                        
                     else:
                         spirals[i] = pe.test_connect_two_pockets(spirals[i],spirals[ic], abs(offset))
+                        msg = '{} insert {}'.format(i+1, ic+1)
+                        print(msg)                        
                                                                  
                     if (i==6 and ic==7):
                         msg = "{}: {}, {}: {}".format(i, len(spirals[i]), ic, len(spirals[ic]))
@@ -372,19 +374,31 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
             ##cv2.circle(pe.im, tuple(iso_contours_2D[i][5].astype(int)), 5, (0,0,255), -1)             
             #pathengine.suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)        
         
-        #path2d.draw_line(iso_contours_2D[7], pe.im, [0,0,0] ,1)    
-        
-        #path2d.draw_line(iso_contours_2D[27], pe.im, [128,0,0] ,1) 
-        #path2d.draw_line(spirals.get(3), pe.im, [255,0,255],1)
-        #path2d.draw_line(spirals.get(2), pe.im, [128,50,128],1)        
-        
         spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 3, 1)
-        pathengine.suPath2D.draw_line(spirals[0], pe.im, [100,255,100],1)              
-    
+        pathengine.suPath2D.draw_line(spirals[0], pe.im, [100,255,100],1)                      
+        
+ 
         #spiral id
-        for i in range(len(spirals)):
-            pathengine.suPath2D.draw_text(str(i + 1), spirals[i][0], pe.im)     
-        #path2d.draw_line(iso_contours_2D[33], pe.im, [0,0,255] ,1)            
+        #for i in range(len(spirals)):
+            #pathengine.suPath2D.draw_text(str(i + 1), spirals[i][0], pe.im)     
+        
+        kappa, smooth = css.compute_curve_css(spirals[22], 2)  
+        css_idx = css.find_css_point(kappa)
+        for i in css_idx:
+            cv2.circle(pe.im, tuple(spirals[22][i].astype(int)), 2, (255,255,0), -1)  
+        
+        id_sp = 0
+        kappa, smooth = css.compute_curve_css(spirals[id_sp], 4)  
+        css_idx = css.find_css_point(kappa)
+        for i in css_idx:
+            cv2.circle(pe.im, tuple(spirals[id_sp][i].astype(int)), 2, (255,255,0), -1)         
+                                
+        
+        pathengine.suPath2D.draw_line(spirals[22], pe.im, [0,0,255] ,1)   
+        #pathengine.suPath2D.draw_line(iso_contours_2D[36], pe.im, [0,0,255] ,1) 
+       
+    
+               
        
 
         #path2d.draw_line(spirals.get(3), pe.im, [0,0,255],1)
@@ -419,5 +433,5 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/two-circle-2.png", -6, False)
+    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -6, False)
     #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice.png", -7)

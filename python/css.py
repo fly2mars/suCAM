@@ -67,6 +67,10 @@ def smooth_curve(curve, sigma, is_open = False):
     
     return gX.T, dX, dY, dXX, dYY
 def compute_curve_css(curve, sigma, is_open=False):
+    '''
+    example:
+       kappa, smooth = compute_curve_css(c,3)
+    '''
    
     smooth, dX, dY, dXX, dYY = smooth_curve(curve, sigma)
     
