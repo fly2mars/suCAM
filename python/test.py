@@ -424,7 +424,94 @@ def test_filling_with_continues_spiral(filepath, offset = -14, reverseImage = Tr
     cv2.imwrite("d:/tmp.png", pe.im)
     cv2.imshow("Art", pe.im)
 
-    cv2.waitKey(0)        
+    cv2.waitKey(0)  
+    
+def test_fill_from_CSS(filepath, offset, is_reverse_img=True):
+    pe = pathengine.pathEngine()   
+    
+    def fill_spiral_in_connected_region(boundary):
+        print("Region {}: has {} boundry contours.".format(iB, len(boundary)) )
+        iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
+        # init contour graph for iso contour by a distance relationaship matrix  
+        iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours)     
+        graph.to_Mathematica("")
+
+        if not graph.is_connected():
+            print("not connected")
+            ret = pe.reconnect_from_leaf_node(graph, iso_contours, abs(offset * 1.2))
+            if(ret):
+                print("re-connect...")
+                graph.to_Mathematica("")
+
+        # generate a minimum-weight spanning tree
+        graph.to_reverse_delete_MST()
+        graph.to_Mathematica("")
+        # generate a minimum-weight spanning tree
+        pocket_graph = graph.gen_pockets_graph()
+        pocket_graph.to_Mathematica("")
+        # generate spiral for each pockets
+        # deep first search
+        spirals = {}
+        pe.dfs_connect_path_from_bottom(0, pocket_graph.nodes, iso_contours_2D, spirals, offset) 
+        
+        return spirals[0]
+    
+    #1.find contours from slice
+    pe.generate_contours_from_img(filepath, is_reverse_img)
+
+    contour_tree = pe.convert_hiearchy_to_PyPolyTree() 
+    group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')    
+
+    pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
+    #2.filling each connected region   
+    dist_th = abs(offset) * 1.1 # contour distance threshold between adjacent layers
+    iB = 0
+    for boundary in group_boundary.values():
+        spiral = fill_spiral_in_connected_region(boundary)
+        #print("Region {}: has {} boundry contours.".format(iB, len(boundary)) )
+        #iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
+
+        ## init contour graph for iso contour by a distance relationaship matrix  
+        #iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours)     
+        #graph.to_Mathematica("")
+
+        #if not graph.is_connected():
+            #print("not connected")
+            #ret = pe.reconnect_from_leaf_node(graph, iso_contours, abs(offset * 1.2))
+            #if(ret):
+                #print("re-connect...")
+                #graph.to_Mathematica("")
+
+        ## generate a minimum-weight spanning tree
+        #graph.to_reverse_delete_MST()
+        #graph.to_Mathematica("")
+        ## generate a minimum-weight spanning tree
+        #pocket_graph = graph.gen_pockets_graph()
+        #pocket_graph.to_Mathematica("")
+        ## generate spiral for each pockets
+        ## deep first search
+        #spirals = {}
+        #pe.dfs_connect_path_from_bottom(0, pocket_graph.nodes, iso_contours_2D, spirals, offset)       
+
+        ##test
+        #for l in iso_contours_2D:
+
+            #pathengine.suPath2D.draw_line(l, pe.im, [0,0,255],1)
+        ##test
+
+        #spirals[0] = pe.smooth_curve_by_savgol(spirals[0], 3, 1)
+        pathengine.suPath2D.draw_line(spiral, pe.im, [100,255,100],1)                      
+
+        #id_sp = 0
+        #kappa, smooth = css.compute_curve_css(spirals[id_sp], 4)  
+        #css_idx = css.find_css_point(kappa)
+        #for i in css_idx:
+            #cv2.circle(pe.im, tuple(spirals[id_sp][i].astype(int)), 2, (255,255,0), -1)                                       
+
+        iB += 1     
+
+    cv2.imshow("Art", pe.im)
+    cv2.waitKey(0)   
     
 if __name__ == '__main__':  
     #test_segment_contours_in_region("E:/git/suCAM/python/images/slice-1.png")
@@ -433,5 +520,7 @@ if __name__ == '__main__':
     
     #test_pocket_spiral("E:/git/mydoc/Code/python/gen_path/data/sample.png", -14, False)
     #test_pocket_spiral("E:/git/suCAM/python/images/slice-1.png")
-    test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -6, False)
+    #test_filling_with_continues_spiral("E:/git/mydoc/Code/python/gen_path/data/gear.png", -6, False)
     #test_filling_with_continues_spiral("E:/git/suCAM/python/images/slice.png", -7)
+    #test_fill_from_CSS("e:/git/mydoc/Code/python/gen_path/data/two-circle.png", -7, False)
+    test_fill_from_CSS("E:/git/suCAM/python/images/slice-1.png", -6, True) 

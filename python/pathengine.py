@@ -1,4 +1,4 @@
-'''
+"""
 This module provides functions about filling path generation
 # 1. extract contours tree from mask image [simulating a layer of slices in STL model].
 # 2. for each seperated region, generate iso-contours.
@@ -14,7 +14,7 @@ example:
               ePath = gen_fermat_curve(ePath)
 
 In 3D printing path generation,   
-'''
+"""
 
 import cv2
 import numpy as np
@@ -23,11 +23,12 @@ import math
 import scipy.spatial.distance as scid
 import suGraph
 from scipy.signal import savgol_filter
+import css
 
 class suPath2D:
-    '''
+    """
     Hold data structure and tool functions for 2D path
-    '''    
+    """    
     def __init__(self):        
         self.contour_tree      = None
         self.group_boundary    = []
@@ -38,7 +39,7 @@ class suPath2D:
         return 
     @staticmethod
     def get_contour_id(i,j,iso_contours):
-        '''
+        """
         Get a 1D global index from iso_contours list contour(i,j), where
         i is the distance to the boundary, there are many contours(j=0...n-1).  
         Thus we can generate a index matrix for building a graph that can
@@ -47,7 +48,7 @@ class suPath2D:
            GraphPlot[{{1, 1, 1, 0}, {1, 0, 0, 0}, {0, 1, 0, 0}, {1, 1, 0, 1}},
                      SelfLoopStyle -> True, MultiedgeStyle -> True,
                      VertexLabeling -> True, DirectedEdges -> True]
-        '''
+        """
         id = 0 
         ii = 0
         for cs in iso_contours:
@@ -107,13 +108,13 @@ class suPath2D:
                 contours[i] = np.flip(contours[i], 0)
     @staticmethod
     def find_distance_matrix(cs):
-        '''
+        """ 
         compute distance matrix and min distance among a group of contours
         return distance matrix and the index of the min value
         
         example:
              D, i,j= find_distance_matrix(contours)
-        '''
+        """ 
         n = len(cs)
         D = np.zeros([n,n])
         d = float("inf")
@@ -129,7 +130,7 @@ class suPath2D:
         return D, idx_i, idx_j          
     @staticmethod
     def resample_curve_by_equal_dist(contour, size=2, is_open = False):
-        '''
+        """ 
         Resample a curve by Roy's method
         Refer to "http://www.morethantechnical.com/2012/12/07/resampling-smoothing-and-interest-points-of-curves-via-css-in-opencv-w-code/"
         @contour: input contour
@@ -137,7 +138,7 @@ class suPath2D:
         @is_open: True means openned polyline, False means closed polylien
         example:
              c = suPath2D.resample_curve_by_equal_dist( c, offset)     
-        '''
+        """ 
         resample_c = []
         ## compute length of contour
         contour_length = 0;  
@@ -189,12 +190,12 @@ class suPath2D:
         return  np.asarray(resample_c)   
     @staticmethod
     def find_closest_point_pair(c1, c2):
-        '''
+        """
         Return two indice of the closest pair of points.
         
         example:
             id1, id2, min_d = find_closest_point_pair(c1,c2)
-        '''
+        """
         dist = scid.cdist(c1, c2, 'euclidean')
         min_dist = np.min(dist)    
         gId = np.argmin(dist)
@@ -203,13 +204,31 @@ class suPath2D:
         return pid_c1, pid_c2, min_dist
 
     @staticmethod
+    def find_nearest_point_for_css(c1, c2, offset, window_size = 4):
+        """
+        find CSS points on c1
+        make a polyline by above points
+        find nearest pair of index
+        @c1 is the first contour
+        @c2 is the second contour
+        @windows_size is \alpha of CSS
+        """
+        id1 = id2 = -1
+        kappa, smooth = css.compute_curve_css(c1, 4)  
+        css_idx = css.find_css_point(kappa)
+        c = []
+        for i in css_idx:
+            c.append(c1[i])
+        id1, id2, min_d = suPath2D.find_closest_point_pair(c,c2)
+        return css_idx[id1], id2, min_d 
+    @staticmethod
     def draw_line(point_lists, img, color, line_width=1, point_size=0):
-        '''
+        """
         draw poly line to image 
         point_list is a np.ndarray with shape of (n,2)
         example:
            suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)
-        '''
+        """
         if point_lists == None or len(point_lists) == 0:
             return
         point_lists = point_lists.astype(int)
@@ -221,10 +240,10 @@ class suPath2D:
                 cv2.circle(img, tuple(p), point_size, color)   
         return
     def draw_text(text, bottom_left, img, fontColor = (255,0,0), fontScale = 0.5, lineType=1):
-        '''
+        """
         example:
            suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)
-        '''
+        """
         font                   = cv2.FONT_HERSHEY_SIMPLEX
         fontSize               = [12,-12]
         offset = bottom_left - np.array(fontSize)*fontScale
@@ -238,9 +257,9 @@ class suPath2D:
 
     @staticmethod
     def generate_RGB_list(N):
-        '''
+        """
         Generate N color list
-        '''
+        """
         import colorsys
         HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
         RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
@@ -249,12 +268,12 @@ class suPath2D:
     
     @staticmethod
     def ccw(contour):
-        '''
+        """
         check a contour is (counter clockwise)CCW or CW
         return CCW: True   CW: False
         refer to https://stackoverflow.com/questions/1165647/how-to-determine-if-a-list-of-polygon-points-are-in-clockwise-order
         Here we use openCV image coordinate, like HTML5 canvas
-        '''
+        """
         l = np.asarray(contour)
         ls = np.roll(l, -1, axis=0)
         
@@ -264,6 +283,9 @@ class suPath2D:
         return True
     
 class pathEngine:
+    """
+    Class pathEngine provide all necessary functions to build continous path.
+    """
     def __init__(self):
         self.offset = 0.4
         self.im = None
@@ -274,15 +296,14 @@ class pathEngine:
         self.root_of_region_contour = None
         self.iso_contours_of_a_region = []
         return
-    
-    #######################################################################################
-    # return contours(python list by a tree) #
-    # https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
-    # This function provides:
-    # 1. Compute area for each contour
-    # 2. Return image, contours, areas, hiearchy, root_contour_idx
-    #######################################################################################
-    def generate_contours_from_img(self, imagePath, isRevertImage=False):          
+
+    def generate_contours_from_img(self, imagePath, isRevertImage=False):    
+        """
+        Read image from imagePath and return 
+        @im reprents a image data
+        @contours(python list of list)
+        @hiearchy reprensents a matrix, the details can be find in https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
+        """
         im = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
         if isRevertImage :
             im = 255 - im
@@ -290,14 +311,17 @@ class pathEngine:
        
         self.im, self.contours, self.hiearchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         return self.im, self.contours, self.hiearchy
-    #######################################################################################
-    # Recursively add a child node and add a brother node by info from hiearchy
-    # In each node, the contour from opencv is converted from (x,1,2) to (x,2)
-    # @cur_node: current node, first input is a empty root node
-    # @idx: current index   
-    # ref: https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
-    #######################################################################################
+
     def recusive_add_node(self, node, idx):
+        """
+        This function  recursively add a child node add a brother node 
+        into current node based on the hiearchy matrix. The detail 
+        can be refered to https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
+        return 
+        @cur_node: current node, first input is a empty root node
+        @idx: current index   
+        Note: In each node, the shape of contour from opencv is converted from (x,1,2) to (x,2)
+        """
        
         if idx >= self.hiearchy.shape[1]:
             return
@@ -317,15 +341,15 @@ class pathEngine:
                 new_node.Parent.Childs.append(new_node)
                 self.recusive_add_node(new_node, Next)    
         return   
-    ###############################################################################
-    # Generate hiearchy tree from contours and hiearchy matrix
-    # Return contour tree
-    # 1. construct a root node
-    # 2. find the first parent contour and add it to the first child node[use recusive_add_node].
-    # ref: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/PolyTree/_Body.htm
-    # ref: https://stackoverflow.com/questions/32182544/pyclipper-crash-on-trivial-case-terminate-called-throwing-an-exception   
-    ###############################################################################
+
     def convert_hiearchy_to_PyPolyTree(self):
+        """
+        Build a root node and find first level node in hiearchy, then add these node to root. 
+        Finally, use recusive_add_node(node,0) to generate hiearchy tree.
+        Return contour tree (in PyPolyNode)
+        ref: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/PolyTree/_Body.htm
+        ref: https://stackoverflow.com/questions/32182544/pyclipper-crash-on-trivial-case-terminate-called-throwing-an-exception  
+        """
         if self.hiearchy == None:
             return
         # find first contour in hiearchy-0
@@ -348,9 +372,9 @@ class pathEngine:
    
 
     def get_contours_from_each_connected_region(self, polyTreeNode, sId = '0'):
-        '''
+        """
         for each seperated region on a slice
-        - return contour group to reprent boundaries of a connected region
+        - return contour group to represent boundaries of a connected region
           each seperated region represents a region with connected area.
         @polyTreeNode is used to hold region boundary. Typically, the boundaries
                     stored in the current node represent external contours, and
@@ -365,7 +389,7 @@ class pathEngine:
         
         examples:   contour_group = get_contours_from_each_connected_region(root, '0')
                     contour_group = get_contours_from_each_connected_region(node, '0-1-1')
-        '''
+        """
         root = polyTreeNode
         contour_group = {}  # eg. contour_group[id] holds all inner and outter contours in a seperated region.
         nDeep = sId.count('-')                       
@@ -400,13 +424,16 @@ class pathEngine:
            
         return contour_group   
    
-    #######################################
-    # Traversing a PyPolyTree
-    # @root: root of tree
-    # @order: 0-deep first, 1-breath first
-    # @func: function(contour, Children_list)
-    #######################################
+
     def traversing_PyPolyTree(self, root, func=None, order=0):
+        """
+        A function for test.
+        Traversing a PyPolyTree
+        @root: root of tree
+        @func: function(contour, Children_list)
+        @order: 0-deep first, 1-breath first(TODO)
+        
+        """
         if (func != None):           
             func(root)
         else:
@@ -420,12 +447,14 @@ class pathEngine:
                 self.traversing_PyPolyTree(n, func, 0)
         return  
    
-    #######################################
-    # Get all nodes that depth = nDepth from a PyPolyTree
-    # @depth: depth of node
-    # return a list of node where node.depth = depth   
-    #######################################   
+
     def get_nodes_by_layer(self, node, depth):
+        """
+        A test function(not used again)
+        Get all nodes that depth = nDepth from a PyPolyTree
+        @depth: depth of node
+        return a list of node where node.depth = depth   
+        """
         node_list = []       
         def traverse(node,depth, node_list):
             for n in node.Childs:
@@ -439,24 +468,22 @@ class pathEngine:
         traverse(node, depth, node_list)
         return node_list
            
-   
-
-    ##############################################
-    # fill a region with iso contours
-    # add all contours into self.iso_contours_of_a_region
-    # return iso_contours_of_a_region, which inclues
-    # an iso contour list, each is represented as c[i,j]
-    # example:
-    #          pe = pathEngine()
-    #          pe.generate_contours_from_img(filepath, True)
-    #          contour_tree = pe.convert_hiearchy_to_PyPolyTree() 
-    #          group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
-    #          for cs in group_contour:
-    #              pe.iso_contours_of_a_region.clear()
-    #              iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset)
-    #              ...
-    ##############################################
     def fill_closed_region_with_iso_contours(self, input_contours, offset):
+        """
+        fill a region with iso contours
+        add all contours into self.iso_contours_of_a_region
+        return @iso_contours_of_a_region, which inclues
+        an iso contour list, each is represented as c[i,j]
+        example:
+              pe = pathEngine()
+              pe.generate_contours_from_img(filepath, True)
+              contour_tree = pe.convert_hiearchy_to_PyPolyTree() 
+              group_contour = pe.get_contours_from_each_connected_region(contour_tree, '0')
+              for cs in group_contour.values():
+                  pe.iso_contours_of_a_region.clear()
+                  iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset)
+        
+        """
         self.offset = offset
         iso_contours_of_a_region = []
         contours = input_contours
@@ -468,13 +495,13 @@ class pathEngine:
             iso_contours_of_a_region.append( contours)
         return iso_contours_of_a_region
 
-   
-    #######################################
-    # find nearest index of point in a contour
-    # @in: point value(not index), a contour
-    # @out: the index of a nearest point
-    #####################################
     def find_nearest_point_idx(self, point, contour):
+        """
+        given a point, find the nearest index of point in a contour
+        @point(a value, not index) is a vertex
+        @contours 
+        return the index of a nearest point
+        """
         idx = -1
         distance = float("inf")   
         for i in range(0, len(contour)-1):        
@@ -485,12 +512,12 @@ class pathEngine:
         return idx   
     
     def find_point_index_by_distance(self, cur_point_index, cur_contour, T, ori=1):
-        '''
+        """
         find an index of point from current point, which distance larger than T
         @in: current index of point, current contour, 
         @in: T is a distance can be set to offset or offset/2 or 2 * offset
         @ori: orientation ori = 1 prev order, ori = 0 next order
-        '''
+        """
         T = abs(T)
         start_point = cur_contour[cur_point_index]
         
@@ -513,13 +540,13 @@ class pathEngine:
         return idx_end_point    
     
     def contour2spiral(self, contours, idx_start_point, offset):
-        '''
+        """
         Connect all contours of a pocket. The key idea is divide contours 
         into two sets, and run the connection process twice, one for in
         the other for out. Then connect them again.
         @contours: iso contours, index of start point, offset
         @idx_start_point: start connect at idx_start_point-th point on contours[0] 
-        '''
+        """
         offset = abs(offset)
         cc = [] # contour for return
         N = len(contours)
@@ -529,8 +556,7 @@ class pathEngine:
             ## find end point(e1)
             idx_end_point = self.find_point_index_by_distance(idx_start_point, contour1, offset)
             end_point = contour1[idx_end_point]
-            
-            
+                
             # add contour segment to cc
             idx = idx_start_point
             while idx != idx_end_point:
@@ -538,24 +564,24 @@ class pathEngine:
                 idx = suPath2D.next_idx(idx, contour1)   
             
             if(i == N-1): 
-                break
-            
-            #test
-            #cv2.circle(self.im, tuple(contours[i][idx_start_point].astype(int)), 5, (0,0,255), -1)             
-            #cv2.circle(self.im, tuple(contours[i][idx_start_point + 4].astype(int)), 5, (255,0,255), -1) 
+                break          
             
             ## find s2   
             idx_start_point2 = self.find_nearest_point_idx(end_point, contours[i+1])  
             # go forward a distance to avoid interference
             idx_start_point2 = self.find_point_index_by_distance(idx_start_point2, contours[i+1], offset/2, 0)
             
-            idx_start_point = idx_start_point2   
-                            
-            #cv2.circle(self.im, tuple(contours[i][idx_end_point].astype(int)), 5, (255,0,0), -1)             
-            
+            idx_start_point = idx_start_point2                  
+            #cv2.circle(self.im, tuple(contours[i][idx_end_point].astype(int)), 5, (255,0,0), -1)                      
         return cc     
     
     def connect_spiral(self, first_spiral, second_spiral, is_flip=True):
+        """
+        Connect two spiral
+        @is_flip means if the orientation of second contour needs to be changed.
+        Commonly, we reverse the orientation of second contour, then connect it
+        with the first one.                
+        """
         s = []
         if is_flip:
             second_spiral = np.flip(second_spiral, 0)
@@ -568,6 +594,13 @@ class pathEngine:
     # return contours 2d list
     # init a graph for organizing iso-contours
     def init_isocontour_graph(self, iso_contours):
+        """
+        Generate 2d iso contour list and a graph by distance relationship matrix
+        @iso_contours includes list of contours[i,j] 
+        return
+          @iso_contours_2D
+          @graph
+        """
         num_contours = 0       
         iso_contours_2D = []
         # contour distance threshold between adjacent layers
@@ -578,16 +611,9 @@ class pathEngine:
 
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
-                # resample and convert to np.array
-                
+                # resample && convert to np.array                
                 iso_contours[i][j] = suPath2D.resample_curve_by_equal_dist(iso_contours[i][j], inter_size) 
-                iso_contours_2D.append(iso_contours[i][j])
-                #if(i == 0):
-                    #iso_contours_2D.append(np.flip(iso_contours[i][j],0))
-                #else:
-                    #iso_contours_2D.append(iso_contours[i][j])                
-
-                #map_ij.append([i,j])
+                iso_contours_2D.append(iso_contours[i][j])               
                 num_contours += 1       
         suPath2D.convto_cw(iso_contours_2D)
         # @R is the relationship matrix
@@ -611,18 +637,17 @@ class pathEngine:
             i += 1       
         #visualize
         graph = suGraph.suGraph()  
-        graph.init_from_matrix(R)
-        
-        
+        graph.init_from_matrix(R)        
         return iso_contours_2D, graph    
     
     def reconnect_from_leaf_node(self, graph, iso_contours, dist_thresh):
-        '''
+        """
         if graph not connected, find new edge from leaf nodes.
         return true if the re-connection is successful
+        Method: Just add a new edge, if the graph is connected, then return
         example:
             ret = reconnect_from_lear_node(graph, iso_contours)
-        '''
+        """
         layer = range(len(iso_contours)-1)
         layer = list(layer)
         layer.reverse()
@@ -638,24 +663,19 @@ class pathEngine:
                 if(graph.is_connected()):                
                     return True
         return  False    
+    
     def connect_two_pockets(self, fc1, fc2, offset):
-        '''
+        """
         connect to the next contour then going back
         connect points:
                         start                    end
            fc1:    pid_c1(closest)         goning forward with distance offset (from start)
            fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
-        '''        
-        # Firstval, use the original start and end point of fc2
-        pid_c2 = len(fc2) - 1
-        #pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
-        
-        pid_c1 = self.find_nearest_point_idx(fc2[pid_c2], fc1)
-        d = np.linalg.norm(fc1[pid_c1]-fc2[pid_c2])
-        #test
-        d = 3*offset
-        if(d > 2*offset):
+        """        
+        pid_c1, pid_c2, min_d = suPath2D.find_nearest_point_for_css(fc1, fc2, offset)
+        if(min_d > abs(offset) * 1.1):
             pid_c1, pid_c2, min_d = suPath2D.find_closest_point_pair(fc1,fc2)
+        
         
         # check orientation
         # not precise, todo: use log func to estimate
@@ -670,7 +690,7 @@ class pathEngine:
         
         fc = []
         #find return point with distance to pid_c1 = offset
-        idx_offset = self.find_point_index_by_distance(pid_c1, fc1, offset, 0)
+        pid_c1_return = self.find_point_index_by_distance(pid_c1, fc1, offset, 0)
                 
         
         #fc1 from 0 to pid_c1
@@ -678,54 +698,49 @@ class pathEngine:
             #fc.append(fc1[i]) 
         fc = fc + list(fc1)[0:pid_c1+1]
         #get returned index from fc2
-        idx_end = self.find_nearest_point_idx(fc1[idx_offset], fc2)
+        pid_c2_near_return = self.find_nearest_point_idx(fc1[pid_c1_return], fc2)
         
             #if (idx_end == pid_c2):
                 #print(">>>>")
                 #idx_end = suPath2D.next_idx(idx_end, fc2)
-            #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (255,0,0)) 
+        
         #test
-        #cv2.circle(self.im, tuple(fc1[nid_c1].astype(int)), 2, (0,0,255)) 
-        #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255)) 
-        #cv2.circle(self.im, tuple(fc2[0].astype(int)), 3, (0,0,255)) 
-        #cv2.circle(self.im, tuple(fc2[-1].astype(int)), 3, (0,0,255))         
+        #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255))          
+        #cv2.circle(self.im, tuple(fc2[pid_c2_near_return].astype(int)), 2, (255,0,0)) 
         
         idx = pid_c2
         if angle > 90:
             # different orientaton: 
-            if (idx_end == pid_c2):
+            if (pid_c2_near_return == pid_c2):
                 #print("-------------------------------------------")
                 #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
-                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 1)            
-            while idx != idx_end:  
+                pid_c2_near_return = self.find_point_index_by_distance(pid_c2_near_return, fc2, offset, 1)            
+            while idx != pid_c2_near_return:  
                 fc.append(fc2[idx])
                 idx = self.path2d.next_idx(idx, fc2)            
         else:
-            if (idx_end == pid_c2):
+            if (pid_c2_near_return == pid_c2):
                 #print("-------------------------------------------")
                 
-                idx_end = self.find_point_index_by_distance(idx_end, fc2, offset, 0)            
-            while idx != idx_end:  
+                pid_c2_near_return = self.find_point_index_by_distance(pid_c2_near_return, fc2, offset, 0)            
+            while idx != pid_c2_near_return:  
                 fc.append(fc2[idx])
                 idx = self.path2d.prev_idx(idx, fc2)            
                 
         
-        fc.append(fc2[idx_end])
-        
-        #while idx_offset != 0:        
-            #fc.append(fc1[idx_offset])
-            #idx_offset = self.path2d.next_idx(idx_offset, fc1)            
-        fc = fc + list(fc1[idx_offset:])
+        fc.append(fc2[pid_c2_near_return])
+        # 3        
+        fc = fc + list(fc1[pid_c1_return:])
             
-        return np.asarray(fc)   
+        return np.asarray(fc)    
     def test_connect_two_pockets(self, fc1, fc2, offset):
-        '''
+        """
         connect to the next contour then going back
         connect points:
                         start                    end
            fc1:    pid_c1(closest)         goning forward with distance offset (from start)
            fc2:    pid_c2(closest)         going forward and contrary to the dir of fc1, end near the start of fc1 
-        '''        
+        """        
         # Firstval, use the original start and end point of fc2
         pid_c2 = len(fc2) - 1
         #pid_c1, pid_c2 = suPath2D.find_closest_point_pair(fc1,fc2)
@@ -763,19 +778,17 @@ class pathEngine:
             #if (idx_end == pid_c2):
                 #print(">>>>")
                 #idx_end = suPath2D.next_idx(idx_end, fc2)
-            #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (255,0,0)) 
+        
         #test
-        #cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255)) 
-        #cv2.circle(self.im, tuple(fc1[pid_c1_return].astype(int)), 2, (255,0,255)) 
-        #cv2.circle(self.im, tuple(fc2[pid_c2].astype(int)), 3, (0,0,255)) 
-        #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 3, (0,0,255))         
+        cv2.circle(self.im, tuple(fc1[pid_c1].astype(int)), 2, (0,0,255))          
+        cv2.circle(self.im, tuple(fc2[pid_c2_near_return].astype(int)), 2, (255,0,0)) 
         
         idx = pid_c2
         if angle > 90:
             # different orientaton: 
             if (pid_c2_near_return == pid_c2):
                 #print("-------------------------------------------")
-                #cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
+                cv2.circle(self.im, tuple(fc2[idx_end].astype(int)), 2, (0,0,255)) 
                 pid_c2_near_return = self.find_point_index_by_distance(pid_c2_near_return, fc2, offset, 1)            
             while idx != pid_c2_near_return:  
                 fc.append(fc2[idx])
@@ -794,7 +807,59 @@ class pathEngine:
         # 3        
         fc = fc + list(fc1[pid_c1_return:])
             
-        return np.asarray(fc)        
+        return np.asarray(fc)  
+    def dfs_connect_path_from_bottom(self, i, nodes, iso_contours_2D, spirals, offset):
+            node = nodes[i]  
+            msg = '{} make spiral {}'.format(i+1, np.asarray(node.data) + 1)
+            print(msg)  
+            cs = []
+            for ii in node.data:
+                cs.append(iso_contours_2D[ii])
+            spirals[i] = self.build_spiral_for_pocket(cs, False) 
+    
+            #if(i ==7):
+            #    suPath2D.draw_line(spirals[i], self.im, [255,255,0],1)
+            if(len(node.next) > 0): 
+                for ic in node.next:
+                    self.dfs_connect_path_from_bottom(ic, nodes, iso_contours_2D, spirals, offset)                    
+    
+                    if (len(spirals[ic]) / len(spirals[i]) > 2):
+                        spirals[i] = self.connect_two_pockets(spirals[ic],spirals[i], abs(offset))
+                        msg = '{} insert {}'.format(ic+1, i+1)
+                        print(msg)                        
+                    else:
+                        spirals[i] = self.connect_two_pockets(spirals[i],spirals[ic], abs(offset))
+                        msg = '{} insert {}'.format(i+1, ic+1)
+                        print(msg)                        
+    
+    
+            return      
+    def fill_spiral_in_connected_region(self, boundary, offset):
+        
+        iso_contours = self.fill_closed_region_with_iso_contours(boundary, offset)
+        # init contour graph for iso contour by a distance relationaship matrix  
+        iso_contours_2D, graph = self.init_isocontour_graph(iso_contours)     
+        graph.to_Mathematica("")
+
+        if not graph.is_connected():
+            print("not connected")
+            ret = self.reconnect_from_leaf_node(graph, iso_contours, abs(offset * 1.2))
+            if(ret):
+                print("re-connect...")
+                graph.to_Mathematica("")
+
+        # generate a minimum-weight spanning tree
+        graph.to_reverse_delete_MST()
+        graph.to_Mathematica("")
+        # generate a minimum-weight spanning tree
+        pocket_graph = graph.gen_pockets_graph()
+        pocket_graph.to_Mathematica("")
+        # generate spiral for each pockets
+        # deep first search
+        spirals = {}
+        self.dfs_connect_path_from_bottom(0, pocket_graph.nodes, iso_contours_2D, spirals, offset) 
+        
+        return spirals[0]        
     def smooth_curve_by_savgol(self, c, filter_width=5, polynomial_order=1):
         #N = 10
         last_vert = c[-1]
@@ -810,14 +875,14 @@ class pathEngine:
    
     @staticmethod
     def check_pocket_ratio_by_pca(cs,offset=4):
-        '''
+        """
         return ratio, start_point_idx by Principal Component Analysis(PCA)    
         @ratio = second component / first component
         @start_point_idx speicify an entrance position by PCA
         input
         @cs: contour list in pockets
         @offset: to determin distance of interpolation 
-        '''
+        """
         from sklearn.decomposition import PCA
         verts = []
         for c in cs:
@@ -843,12 +908,12 @@ class pathEngine:
         pid_c1, pid_c2, d = suPath2D.find_closest_point_pair(cs[0],ax1)
         
         return ratio, pid_c1    
-    def build_spiral_for_pocket(self, iso_contours):
-        '''
+    def build_spiral_for_pocket(self, iso_contours, use_PCA = False):
+        """
         Split contours into two groups(by odd/even), connect each then join these two spirals.
         @iso_contours: input iso contours of a pocket  
         return a spiral path
-        '''
+        """
         if (len(iso_contours) == 1):
             return iso_contours[0]        
         in_contour_groups = []
@@ -861,9 +926,10 @@ class pathEngine:
     
         #test
         start_id = 0
-        #ratio, entrance_id = pathEngine.check_pocket_ratio_by_pca(in_contour_groups, self.offset)        
-        #if(ratio > 0.5):
-            #start_id = entrance_id
+        if use_PCA:
+            ratio, entrance_id = pathEngine.check_pocket_ratio_by_pca(in_contour_groups, self.offset)        
+            if (ratio < 0.8):
+                start_id = entrance_id
         #cv2.circle(self.im, tuple(in_contour_groups[0][start_id].astype(int)), 5, (0,0,255)) 
         
         cc_in = self.contour2spiral(in_contour_groups,start_id, self.offset )
@@ -878,12 +944,7 @@ class pathEngine:
         fspiral = self.connect_spiral(cc_in, cc_out)
         ## set out point
         out_point_index = self.find_point_index_by_distance(start_id, in_contour_groups[0], self.offset/2)
-        fspiral.append(in_contour_groups[0][out_point_index])  
-        #print(type(fspiral))
-        #print(fspiral[-4:])
-        #cv2.circle(self.im, tuple(fspiral[-1].astype(int)), 5, (0,0,255)) 
-        ## smooth withe filter size 3, order 1
-        #fspiral = self.smooth_curve_by_savgol(fspiral, 3, 1)    
+        fspiral.append(in_contour_groups[0][out_point_index])     
         return np.array(fspiral)    
            
 ############################
@@ -936,9 +997,9 @@ def test_region_contour(filepath):
         idx += 1
     cv2.imshow("Art", pe.im)
     cv2.waitKey(0)         
-'''
+"""
 pe.fill_closed_region_with_iso_contours(boundary, offset) return a 2d array c[i][j]
-'''
+"""
 def test_fill_with_iso_contour(filepath, reverseImage = True):
     offset = -6
     line_width = 1#int(abs(offset)/2)
