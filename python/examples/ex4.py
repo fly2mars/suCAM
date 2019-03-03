@@ -19,6 +19,7 @@ import stl2pngfunc
 from collections import deque
 import pathengine
 import numpy as np
+import scipy.spatial.distance as scid
 
 def LOG(func):
     def wrap_log(*args, **kwargs):
@@ -82,20 +83,14 @@ def is_interference(rs, i, j, thresh):
       True:  interference 
       False: not interference 
     '''
-    c1s = rs[i][j]
-    c1 = []
-    
-    for c in c1s:
-        c1 = c1 + c
-    
     is_interfere = False
     
-    for ind in range(len(rs)):
-        c2 = []
-        if ind == j:
-            continue
-        for c in rs[ind]:
-            c2 = c2 + c        
+    if idx in 
+    pid_c1, pid_c2, min_dist = get_min_dist(b1, b2)
+    
+    
+    
+   
         dist = scid.cdist(c1, c2, 'euclidean')
         min_dist = np.min(dist)
         if min_dist < thresh:
@@ -103,6 +98,25 @@ def is_interference(rs, i, j, thresh):
 
     return False
 
+def get_min_dist(b1, b2):
+    """
+    @b1 and b2 are contours of the 1-th boundary and 2-th boundary
+    """
+    def combine_contour(b):
+        cs = []
+        for idx in range(len(b)):
+            cs = cs + b[idx]
+        return cs
+    b1 = combine_contour(b1)
+    b2 = combine_contour(b2)
+            
+    dist = scid.cdist(b1, b2, 'euclidean')
+    min_dist = np.min(dist)    
+    gId = np.argmin(dist)
+    pid_c1 = int(gId / dist.shape[1])
+    pid_c2 = gId - dist.shape[1] * pid_c1            
+    return pid_c1, pid_c2, min_dist    
+    
 class RDqueue():
     def __init__(self, R):
         """
@@ -128,9 +142,60 @@ class RDqueue():
         self.di.popleft()
         self.dj.popleft()
         return
+    def pop_end(self):
+        r, i, j = self.get_end()
+        self.remove_end()
+        return
+    def get_item(self, i, j):
+        """
+        Return r
+        If r(i,j) is not found, return R[0]
+        """
+        for idx in range(len(self.di)):
+            if (self.di[idx] == i) and (self.dj[idx] == j ):
+                return self.d[idx]
+        return self.d[0]
+    
+    def remove_item(self, i, j):
+        for idx in range(len(self.di)):
+            if (self.di[idx] == i) and (self.dj[idx] == j ):
+                self.di.remove(i)
+                self.dj.remove(j)
+                del self.d[idx]
+        return
+    def find_nearest_region_in_with_layer_id(self, r, k):
+        """
+        Given a r(i,j), find the nearest r(k,?)
+        """
+        min_d = float("inf")
+
+        j = -1
+        b1 = r
+        r_idx = -1
+        for idx in range(len(self.di)):            
+            ii = self.di[idx] 
+            if ii == k:         
+                jj = self.dj[idx]
+                b2 = self.get_item(ii, jj)
+                d = get_min_dist(b1, b2)
+                if d < min_d:
+                    j = jj
+                    min_d = d
+                    r_idx = idx
+        return self.d[r_idx], j
+                
+                
     def size(self):
         return len(self.d)
-        
+
+
+
+def find_sequence_test(path):
+    return
+
+def calculate_dist_test(r1, r2):
+    
+    return
         
 if __name__ == "__main__":
     # for visualization 
@@ -205,33 +270,25 @@ if __name__ == "__main__":
 
     # for test
     pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
-    # for test end
-    #init from layer 0
-    #idx = 0
-    #for cs in regions[0]:
-        #dq_cs.append(cs)
-        #dq_id.append(idx)
-
-        #for c in cs:
-            #pathengine.suPath2D.draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],2)
-        #idx += 1
-
-    #algorithm begin
-
+   
+    #algorithm: 3D printing sequence
     S = []  #sequence
-    while d.size() != 0:
-        r,i,j = d.get_end()        
-        if not is_interference(r,i,j,50):
-            #d.remove(i,j)
+    dist_th = 50
+    r,i,j = d.get_end() 
+    
+    while d.size() != 0:           
+        if not is_interference(r,i,j,dist_th):            
             S.append(r)
             i = i + 1
-            #r = d.find_nearest_region(i, i-1, r)
+            r, j = d.find_nearest_region_in_with_layer_id(r, i+1)
         else:
-            r_next, i_next, j_next = d.get_end(1)  # 1 means the second item
-            if i > i_next:
-                r = r_next
-            
-
+            r_next, i_next, j_next = d.get_end()  # 1 means the second item
+            if i <= i_next:                       # The new region is not lower than current, 
+                S.append(r)                       # so the nozzle doesn't have to go down. 
+                d.remove_item(i,j)
+            r = r_next
+            i = i_next
+            j = j_next            
 
 
     cv2.imshow("Art", pe.im)
