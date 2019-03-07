@@ -66,9 +66,11 @@ def get_region_boundary_from_img(img_path, pe, is_reverse=False):
     group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')
     #closed region
     cs_region_list = []
-    for cs_region in group_boundary.values():
+    for cs_region in group_boundary.values():        
+        #ccw to cw and vice versa
         #resample
         for i in range(len(cs_region)):
+            cs_region[i] = np.flip(cs_region[i], 0)
             cs_region[i] = pathengine.suPath2D.resample_curve_by_equal_dist(cs_region[i], 4) 
         cs_region_list.append(cs_region)
     return cs_region_list
@@ -119,9 +121,6 @@ def get_min_dist(b1, b2):
     return pid_c1, pid_c2, min_dist    
 
 class RDqueue():
-    """
-    A deque to hold r(i,j)
-    """
     def __init__(self, R):
         """
         init with all regions in slices
@@ -185,11 +184,10 @@ class RDqueue():
                 del self.dj[idx]
                 del self.d[idx]
                 break
-        return   
+        return
 
     def size(self):
-        return len(self.d)
-
+        return len(self.d)    
 #######################################################    
 # ref: https://stackoverflow.com/questions/24467972/calculate-area-of-polygon-given-x-y-coordinates
 def area(p):
@@ -243,7 +241,7 @@ def find_surpported_region_in_layer(d, r, layer_id, offset = 8):
                 a = compute_region_area(inter_sec)
                 b = compute_region_area(r_t)
                 ratio = a / b
-            if ratio > 0.95:
+            if ratio > 0.98:
                 return r_t, jj
 
     return r_t, r_j 
@@ -271,7 +269,7 @@ def calculate_dist_test(r1, r2):
 
 if __name__ == "__main__":
     # for visualization 
-    colors = pathengine.suPath2D.generate_RGB_list(400)
+    colors = pathengine.suPath2D.generate_RGB_list(5)
 
     # parameters
     parser = argparse.ArgumentParser(description="Runs RMEC g-code generator.")
@@ -307,6 +305,7 @@ if __name__ == "__main__":
 
     out_path = output_path+"/slice-%d.png"
 
+
     real_pixel_size, real_pixel_size, gcode_minx, gcode_miny = stl2pngfunc.stl2png(file_path, N, m.image_width, 
                         m.image_height, out_path,
                         func = lambda i: print("slicing layer {}/{}".format(i+1,N))
@@ -322,70 +321,89 @@ if __name__ == "__main__":
 
     for i in range(N):
         img_file = out_path % i
-        rs = get_region_boundary_from_img(img_file, pe, True)
-        for r in rs:
-            for c in r:
-                print(c.shape)
+        rs = get_region_boundary_from_img(img_file, pe, True)        
         R.append(rs) #
 
-    #d = di = dj = deque()    
     d = RDqueue(R)
 
+    subj = (
+        ((180, 200), (260, 200), (260, 150), (180, 150)),
+        ((215, 160), (230, 190), (200, 190))
+    )
 
-    print("There are {} regions".format(d.size()))
-    #d = deque(R)    
+    clip = ((190, 210), (240, 210), (240, 130), (190, 130))
 
-    # for test
+    pc = pyclipper.Pyclipper()
+    pc.AddPath(clip, pyclipper.PT_CLIP, True)
+    pc.AddPaths(subj, pyclipper.PT_SUBJECT, True)    
+    solution = pc.Execute(pyclipper.CT_INTERSECTION)#, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD) 
+
+    print(solution)
+
+    im = np.zeros((640, 480, 1), dtype = "uint8")
+    im = im + 255
+    im = cv2.cvtColor(im, cv2.COLOR_GRAY2BGR)
+
+    lll = np.array(clip)
+    ll = np.array(subj[1])
+    l = np.array(subj[0])
+    pathengine.suPath2D.draw_line(np.vstack((l,l[0])), im, colors[0],1)   
+    pathengine.suPath2D.draw_line(np.vstack((ll,ll[0])), im, colors[1],1)  
+    #pathengine.suPath2D.draw_line(np.vstack((lll,lll[0])), im, colors[2],1)  
+
+    m = np.array(solution)
+
+    i = 0
+    for s in solution:
+        ls = np.array(s)
+        #pathengine.suPath2D.draw_line(np.vstack((ls,ls[0])), im, colors[3 + i],2)  
+        i += 1
+
+    pe.im = pe.im + 255
     pe.im = cv2.cvtColor(pe.im, cv2.COLOR_GRAY2BGR)
 
-    #algorithm: 3D printing sequence
-    S = [] #sequence with [[i,j]......]
-    dist_th = 10
-    r,i,j = d.get_end() 
-
-    while d.size() != 0:  
-        #print(len(d))
-        #print(S)
-        if (i < N - 1) and (not is_interference(d, i, j, dist_th) ): 
-            S.append([i,j])
-            d.remove_item(i,j)            
-            i = i + 1     
-            r, j = find_surpported_region_in_layer(d, r, i, -6)
-
-            if j == -1:   
-                r, i, j = d.get_end() 
-                continue
-            if i == (N - 1): # reach the top
-                if not is_interference(d, i, j, dist_th):
-                    S.append([i,j])
-                    d.remove_item(i,j)
-                r,i,j = d.get_end()                
-        else:
-            r_next, i_next, j_next = d.get_end() 
-            if [i,j] == [i_next, j_next]:  #the nozzle goes back and the region is not be appended
-                S.append([i,j]) 
-                d.remove_item(i,j)
-                r_next, i_next, j_next = d.get_end()
-            else:
-                if i <= i_next: # The new region is not lower than current, 
-                    S.append([i,j]) # so the nozzle doesn't need to go down. 
-                    d.remove_item(i,j)
-            r = r_next
-            i = i_next
-            j = j_next
-    
-    # A demo
     def draw_region(im, r, color = [255,0,0]):        
         for c in r:
-            pathengine.suPath2D.draw_line(np.vstack((c,c[0])), im, color,1)      
+            pathengine.suPath2D.draw_line(np.vstack((c,c[0])), im, color,1)  
+    def draw_region_with_tag(im, r, color = [255,0,0], lw=1):        
+        for c in r:            
+            pathengine.suPath2D.draw_line(np.vstack((c,c[0])), im, color, lw)     
+            if pathengine.suPath2D.ccw(c):
+                pathengine.suPath2D.draw_text("CCW", c[0], im)
+            else:
+                pathengine.suPath2D.draw_text("CW", c[0], im)
 
-    d = RDqueue(R)
-    k = 0    
-    pe.im = pe.im + 255
-    for [i,j] in S:
-        r = d.get_item(i,j)
-        pe.im = pe.im + 255
-        draw_region(pe.im, r, colors[k])
-        cv2.imwrite("r:/images/s" + str(k) + ".png", pe.im)
-        k += 1
-        
+
+    rs, js = d.get_items(1)
+    ii = 0
+    for r in rs:
+        #draw_region_with_tag(pe.im, r, colors[ii])
+        ii += 1
+
+    r1 = d.get_item(0,0)
+    print("area = {}".format(compute_region_area(r1)))
+    draw_region_with_tag(pe.im, r1, colors[0])
+    r2 = d.get_item(1,0)
+    print("area = {}".format(compute_region_area(r2)))
+    draw_region_with_tag(pe.im, r2, colors[1])
+    inter_area = intersect_area(r1, r2)
+    draw_region(pe.im, inter_area, colors[4])
+    print("inter_area = {}".format(compute_region_area(inter_area)))
+
+    #draw_region_with_tag(pe.im, d.get_item(1,1))
+    #print(r1[0])
+    print("area (0,1).0 = {}".format(area(r1[0])))
+    #print(r1[1])
+    #print("area (0,1).1 = {}".format(area(list(r1[1]))))
+    #print(r1[2])
+    #print("area (0,1).2 = {}".format(area(r1[2])))
+    #l2 = [[ 328. , 131.],[ 295. ,187.5],[ 350.58578644 , 220.],[ 384. , 164.5 ]]
+    #print(area(list(l2)))
+      
+    i = 1
+    r3, j = find_surpported_region_in_layer(d, r1, i, -6)
+    print("({}, {})".format(i, j))
+
+    draw_region_with_tag(pe.im, r3, colors[3], 2)
+    cv2.imshow("Art", pe.im)
+    cv2.waitKey(0)   

@@ -26,7 +26,8 @@ pip install opencv-python
 三角网格的处理包括流形检测、打印方向判定、区域划分。在单轴打印时，打印方向暂由手工制定。
 
 #### 2. 切片
-暂采用[stl2png]https://bitbucket.org/goatchurch/barmesh/src/1e2782de8433?at=master完成。
+为简化轮廓处理，切片暂采用[stl2png]https://bitbucket.org/goatchurch/barmesh/src/1e2782de8433?at=master完成。
+
 
 #### 3. 切片路径填充
 
@@ -34,8 +35,11 @@ pip install opencv-python
 
 连续路径生成参考费马螺线的生成方法参考[Zhao et al.](http://irc.cs.sdu.edu.cn/CFS/)的工作。
 
+
 #### 4.适用于5轴与六轴打印的空间填充与路径生成方法
-todo：自动生成层间连续路径和g-code。
+##### 路径打印
+![Print sequence](../doc/prseq.gif)
+根据打印头的干涉情况，保持连续性并减低后处理成本的原则，排序不同切片层上的打印区域。
 
 
 

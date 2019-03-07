@@ -136,6 +136,7 @@ class VView(QMainWindow):
         autolayout_button = self.add_button(lw_layout, "Auto Layout", bt_width, bt_height)
         slice_button      = self.add_button(lw_layout, "SLICE", bt_width, bt_height)
         fill_button       = self.add_button(lw_layout, "FILL", bt_width, bt_height)
+        print_seq_button       = self.add_button(lw_layout, "Print Sequence", bt_width, bt_height)
         gcode_button      = self.add_button(lw_layout, "Gen GCode", bt_width, bt_height)
         clear_button      = self.add_button(lw_layout, "CLEAR", bt_width, bt_height)
         quit_button       = self.add_button(lw_layout, "QUIT", bt_width, bt_height)       
@@ -144,6 +145,7 @@ class VView(QMainWindow):
         quit_button.clicked.connect(QCoreApplication.instance().quit)    
         load_button.clicked.connect(self.openStlDialog)
         slice_button.clicked.connect(self.slice)
+        print_seq_button.clicked.connect(self.print_sequence)
         fill_button.clicked.connect(self.fill)
         gcode_button.clicked.connect(self.gen_gcode)
         clear_button.clicked.connect(self.clear)      
@@ -302,7 +304,11 @@ class VView(QMainWindow):
         self.sl.valueChanged.connect(self.show_slice)
         return
     
-    
+    def print_sequence(self):
+        try:
+            self.message("Generate print sequence...")
+        except Exception as e:
+            self.message(str(e))        
     def fill(self):
         try:
             i = self.sl.value()
@@ -335,7 +341,7 @@ class VView(QMainWindow):
                 idx = 0
                 for cs in iso_contours:
                     for c in cs:
-                        pathengine.draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
+                        pathengine.suPath2D.draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
                     idx += 1
             
             cv2.imwrite(filepath, pe.im)
