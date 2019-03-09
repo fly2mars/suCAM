@@ -342,10 +342,7 @@ if __name__ == "__main__":
     S = [] #sequence with [[i,j]......]
     dist_th = 10
     r,i,j = d.get_end() 
-
     while d.size() != 0:  
-        #print(len(d))
-        #print(S)
         if (i < N - 1) and (not is_interference(d, i, j, dist_th) ): 
             S.append([i,j])
             d.remove_item(i,j)            

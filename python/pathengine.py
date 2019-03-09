@@ -229,7 +229,7 @@ class suPath2D:
         example:
            suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)
         """
-        if point_lists == None or len(point_lists) == 0:
+        if len(point_lists) == 0:
             return
         point_lists = point_lists.astype(int)
         pts = point_lists.reshape((-1,1,2))
@@ -350,8 +350,6 @@ class pathEngine:
         ref: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/PolyTree/_Body.htm
         ref: https://stackoverflow.com/questions/32182544/pyclipper-crash-on-trivial-case-terminate-called-throwing-an-exception  
         """
-        if self.hiearchy == None:
-            return
         # find first contour in hiearchy-0
         root = pyclipper.PyPolyNode()
         idx = -1
