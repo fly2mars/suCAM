@@ -10,8 +10,8 @@ Default unit is milimeter
 
 class ModelInfo():
     def __init__(self, mesh = None):
-        if (mesh != None):
-            self.mesh = mesh
+        self.mesh = mesh
+        if (mesh != None):            
             self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
         else:
             self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz  = 0,0,0,0,0,0
@@ -22,9 +22,25 @@ class ModelInfo():
         
         self.first_layer_thickness = 0.35
         self.layer_thickness = 0.5
+        self.path = ""
         
         return
     
+    def load(self, file_path):
+        self.mesh = mesh.Mesh.from_file(file_path)
+        if self.mesh == None:
+            return
+        self.path = file_path
+        self.minx, self.maxx, self.miny, self.maxy, self.minz, self.maxz = self.find_mins_maxs()
+        self.init(self.pixel_size, self.first_layer_thickness, self.layer_thickness)
+        return self.mesh
+    def init(self, pixel_size, first_layer_thickness, layer_thickness):
+        if self.mesh == None:
+            return
+        self.set_pixel_size(pixel_size)
+        self.first_layer_thickness = first_layer_thickness
+        self.layer_thickness = layer_thickness
+        self.set_image_size()
         
     def get_info(self):
         info = '''

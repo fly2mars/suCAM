@@ -3,6 +3,7 @@ import os
 import cv2
 
 from os import path
+import pyqtgraph as pg
 from pyqtgraph.Qt import QtGui, QtCore
 from PyQt5.QtGui import(QFont, QIcon, QImage) 
 from PyQt5.QtCore import QCoreApplication
@@ -21,6 +22,7 @@ import pyqtgraph.opengl as gl
 import stl2pngfunc
 import modelInfo
 import pathengine
+import mkspiral
 
 
 class VView(QMainWindow):
@@ -65,8 +67,8 @@ class VView(QMainWindow):
         
     def add_button(self, panel, label, width, height):
         button = QtGui.QPushButton(label)
-        button.setFixedWidth(width)
-        button.setFixedHeight(height)
+        #button.setFixedWidth(width)        
+        #button.setFixedHeight(height)
         panel.addWidget(button)
         return button
         
@@ -136,8 +138,11 @@ class VView(QMainWindow):
         autolayout_button = self.add_button(lw_layout, "Auto Layout", bt_width, bt_height)
         slice_button      = self.add_button(lw_layout, "SLICE", bt_width, bt_height)
         fill_button       = self.add_button(lw_layout, "FILL", bt_width, bt_height)
-        print_seq_button       = self.add_button(lw_layout, "Print Sequence", bt_width, bt_height)
-        gcode_button      = self.add_button(lw_layout, "Gen GCode", bt_width, bt_height)
+        connectp_button   = self.add_button(lw_layout, "Connect Printer...", bt_width, bt_height)
+        print_seq_button  = self.add_button(lw_layout, "Print Sequence", bt_width, bt_height)
+        print_path_button = self.add_button(lw_layout, "Gen Path", bt_width, bt_height)
+        gcode_button      = self.add_button(lw_layout, "Gen GCode", bt_width, bt_height)        
+        printto_button    = self.add_button(lw_layout, "Print...", bt_width, bt_height)
         clear_button      = self.add_button(lw_layout, "CLEAR", bt_width, bt_height)
         quit_button       = self.add_button(lw_layout, "QUIT", bt_width, bt_height)       
 
@@ -147,6 +152,7 @@ class VView(QMainWindow):
         slice_button.clicked.connect(self.slice)
         print_seq_button.clicked.connect(self.print_sequence)
         fill_button.clicked.connect(self.fill)
+        print_path_button.clicked.connect(self.gen_path)
         gcode_button.clicked.connect(self.gen_gcode)
         clear_button.clicked.connect(self.clear)      
 
@@ -178,7 +184,7 @@ class VView(QMainWindow):
         
         
         #self.setGeometry(300, 300, 350, 300)
-        self.setWindowTitle('suCAM')
+        self.setWindowTitle('suCAM-6D')
         #self.setWindowIcon(QIcon('icon.jpg'))
         self.show()
         self.update_ui()
@@ -218,8 +224,10 @@ class VView(QMainWindow):
             else:
                 return
             
-            self.mesh = mesh.Mesh.from_file(fname[0])
-            self.mesh_info = modelInfo.ModelInfo(self.mesh)
+            #self.mesh = mesh.Mesh.from_file(fname[0])
+            #self.mesh_info = modelInfo.ModelInfo(self.mesh)
+            #self.mesh_info.path = fname[0]
+            self.mesh = self.mesh_info.load(fname[0])
             self.message(self.mesh_info.get_info())
             verts = self.mesh.vectors.reshape(self.mesh.vectors.shape[0]*3,3)
             n_face = self.mesh.vectors.shape[0]
@@ -370,7 +378,17 @@ class VView(QMainWindow):
             #plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor((i,n*1.3)), width=(i+1)/10., antialias=True)
             #self.view_slice.addItem(plt)        
         return
-    
+    def gen_path(self):
+        if self.mesh_info.mesh == None:
+            return
+        self.view_slice.items = [] 
+        self.mesh_info.init(self.mesh_info.pixel_size, self.mesh_info.first_layer_thickness, self.mesh_info.layer_thickness)
+        pts = mkspiral.gen_continous_path(self.mesh_info, "r:/images", self.mesh_info.get_layers(), 40)
+            
+        plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor('r'), width= 1, antialias=True)
+        self.view_slice.addItem(plt)      
+        self.view_slice.setBackgroundColor(pg.mkColor('w'))
+        return
     def show_slice(self):
         i = self.sl.value()
         self.message("Show slice {}.".format(i+1), False)

@@ -1,0 +1,19 @@
+; external perimeters extrusion width = 0.40mm
+; perimeters extrusion width = 0.67mm
+; infill extrusion width = 0.67mm
+; solid infill extrusion width = 0.67mm
+; top infill extrusion width = 0.67mm
+
+M107
+M190 S50 ; set bed temperature
+M104 S190 ; set temperature
+G28 ; home all axes
+G1 Z5 F5000 ; lift nozzle
+
+M109 S190 ; wait for temperature to be reached
+G21 ; set units to millimeters
+G90 ; use absolute coordinates
+M82 ; use absolute distances for extrusion
+G92 E0
+G1 E-3.00000 F1800.00000
+G92 E0
