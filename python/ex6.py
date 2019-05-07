@@ -190,7 +190,7 @@ def spiral(pe, boundary,offset):
 ###########################
 #@ms: a meshInfo object
 ###########################
-def gen_continous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
+def gen_continous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3):
     dist_th = collision_dist
     N = slice_layers     
     m = ms_info
@@ -249,25 +249,20 @@ def gen_continous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3
     # generate spiral and connect them
     d = RDqueue(R)    
     path = []
-    Z = 0.0
-    for i in range(0,len(S)-1):
-        iLayer = S[i][0]
-        r=d.get_item(iLayer, S[i][1])
-        cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
+    Z = 0
+    for i in range(0,len(S)-1):  
+        r=d.get_item(S[i][0],S[i][1])
+        cs=spiral(pe, r,-4)   * ms_info.get_pixel_size()
         #transformation to 3d vector
         z = [Z] * len(cs)
         z = np.array(z).reshape([len(z),1])        
-        
         if i== 0:
-            path = np.hstack([cs,z])            
+            path = np.hstack([cs,z])
+            Z += ms_info.first_layer_thickness
         else:
-            if iLayer == 1:
-                z += ms_info.first_layer_thickness
-            elif iLayer > 1:
-                z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
             cs = np.hstack([cs,z])
             path = np.vstack([path,cs])
-            
+            Z += ms_info.layer_thickness        
         
     
     return path

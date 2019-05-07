@@ -383,7 +383,7 @@ class VView(QMainWindow):
             return
         self.view_slice.items = [] 
         self.mesh_info.init(self.mesh_info.pixel_size, self.mesh_info.first_layer_thickness, self.mesh_info.layer_thickness)
-        pts = mkspiral.gen_continous_path(self.mesh_info, "r:/images", self.mesh_info.get_layers(), 40)
+        pts = mkspiral.gen_continous_path(self.mesh_info, "d:/images", self.mesh_info.get_layers(), 40, -10)
             
         plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor('r'), width= 1, antialias=True)
         self.view_slice.addItem(plt)      
