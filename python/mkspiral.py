@@ -78,7 +78,7 @@ def is_interference(d, i, j, thresh):
     for idx in range(len(rs)):
         if js[idx] != j:
             pid_c1, pid_c2, min_dist = get_min_dist(r1, rs[idx])
-            if min_dist < thresh:
+            if min_dist > thresh:
                 return True
 
     return False
