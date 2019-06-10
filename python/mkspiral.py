@@ -40,6 +40,7 @@ def remove_files(dir, ext='.png'):
     else:
         os.mkdir(dir)    
     return
+
 def get_region_boundary_from_img(img_path, pe, is_reverse=False):
     '''
     @image_path is an obsolute file path
@@ -86,6 +87,7 @@ def is_interference(d, i, j, thresh):
 def get_min_dist(b1, b2):
     """
     @b1 and b2 are contours of the 1-th boundary and 2-th boundary
+    return 
     """
     def combine_contour(b):
         cs = []
@@ -130,12 +132,12 @@ def get_offset_contour(cs, offset):
     pco.AddPaths(cs, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
     ncs = pco.Execute(offset)
     return ncs
-def find_surpported_region_in_layer(d, r, layer_id, offset = 8):
+def find_surpported_region_in_layer(d, r, layer_id, offset = 8, ratio_thresh=0.8):
     """
     Given a r(i,j), find the upper connected.
-    We compute the ratio = intersection_area(r_bottom, r_top) / area(r_top)
-    to estimate the relationship of bottom-up region
-    todo: check geometric feature
+     - We compute the ratio = intersection_area(r_bottom, r_top) / area(r_top) to estimate the relationship of bottom-up region
+     - TODO:If multiple regions are found:
+         > select the nearest one.
 
     Rules:      
       - i+1 inter offset contour area Ai
@@ -160,7 +162,7 @@ def find_surpported_region_in_layer(d, r, layer_id, offset = 8):
                 a = compute_region_area(inter_sec)
                 b = compute_region_area(r_t)
                 ratio = a / b
-            if ratio > 0.95:
+            if ratio > ratio_thresh:
                 return r_t, jj
 
     return r_t, r_j 
@@ -190,7 +192,7 @@ def spiral(pe, boundary,offset):
 ###########################
 #@ms: a meshInfo object
 ###########################
-def gen_continous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
+def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
     dist_th = collision_dist
     N = slice_layers     
     m = ms_info
@@ -246,7 +248,9 @@ def gen_continous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3
             r = r_next
             i = i_next
             j = j_next 
+            
     # generate spiral and connect them
+    # todo: connect path on the nearest point
     d = RDqueue(R)    
     path = []
     Z = 0.0
@@ -297,5 +301,5 @@ if __name__ == "__main__":
     m = modelInfo.ModelInfo(ms)
     m.path = file_path
     
-    path = gen_continous_path(m, "r:/images", N, 3)
+    path = gen_continuous_path(m, "r:/images", N, 3)
     print(path.shape)
