@@ -1,6 +1,7 @@
 import sys
 import os
 import cv2
+import json
 
 from os import path
 import pyqtgraph as pg
@@ -24,12 +25,52 @@ import modelInfo
 import pathengine
 import mkspiral
 
-
+#############################################
+#Config management
+#############################################
+class Config(object):
+    def __init__(self, config_file=""):
+        self.data = {}
+        if config_file == "":
+            config_file = os.path.dirname(os.path.realpath(__file__)) + '\\configs\\' + 'config.json'            
+        self.data['config_file'] = config_file
+        self.load()
+        
+    def add(self, key, value):
+        self.data[key] = value
+    
+    def get(self, key):
+        r = self.data.get(key)
+        if r == None:
+            r = 0
+        return r
+        
+    def save(self, config_file=""):
+        if config_file == "":
+            try:
+                with open(self.data['config_file'], 'w') as fout:
+                    json.dump(self.data, fout)                   
+            except Exception as e:
+                print("{} in Config.save.")
+        return
+    
+    def load(self, config_file=""):
+        if config_file == "":
+            try:
+                with open(self.data['config_file'], 'r') as fin:
+                    self.data = json.load(fin)
+            except Exception as e:
+                print("{} in Config.save.")
+        return self.data
+                
+                
+            
 class VView(QMainWindow):
     
     def __init__(self):
         super().__init__()
         
+        self.conf = Config()
         self.initParam()
         self.initUI()
         return
@@ -52,7 +93,10 @@ class VView(QMainWindow):
         self.is_fill_path = False        
         
         return 
-    
+    def quit(self):
+        self.conf.save()
+        QCoreApplication.instance().quit()
+        return
     def message(self, msg, showLastMsg = True):
         self.m_last_msg = self.m_msg
         self.m_msg = msg
@@ -76,6 +120,7 @@ class VView(QMainWindow):
         try:
             new_value = self.widget_arr['first_layer_thickness_edit'].text()
             self.mesh_info.first_layer_thickness = float(new_value)
+            self.conf.data['first_layer_thickness'] = float(new_value)
         except ValueError:
             return
         return 
@@ -83,12 +128,18 @@ class VView(QMainWindow):
         try:
             new_value = self.widget_arr['layer_thickness_edit'].text()
             self.mesh_info.layer_thickness = float(new_value)
+            self.conf.data['layer_thickness'] = float(new_value)
         except ValueError:
             return
-        return         
+        return
+    def update_variable_infill_offset(self):
+        new_value = self.widget_arr['infill_offset_edit'].text()        
+        self.conf.data['infill_offset'] = float(new_value)  
+                  
     def update_ui(self):
-        self.widget_arr['first_layer_thickness_edit'].setText(str(self.mesh_info.first_layer_thickness))
-        self.widget_arr['layer_thickness_edit'].setText      (str(self.mesh_info.layer_thickness))
+        self.widget_arr['first_layer_thickness_edit'].setText(str(self.conf.get('first_layer_thickness')))
+        self.widget_arr['layer_thickness_edit'].setText      (str(self.conf.get('layer_thickness')))
+        self.widget_arr['infill_offset_edit'].setText      (str(self.conf.get('infill_offset')))
        
     def initUI(self):      
         
@@ -127,6 +178,10 @@ class VView(QMainWindow):
         self.widget_arr['layer_thickness_edit'] = QtGui.QLineEdit();
         self.widget_arr['layer_thickness_edit'].textChanged.connect(self.update_variable_layer_thickness)
         
+        self.widget_arr['infill_offset'] = QtGui.QLabel('infill_offset')
+        self.widget_arr['infill_offset_edit'] = QtGui.QLineEdit();
+        self.widget_arr['infill_offset_edit'].textChanged.connect(self.update_variable_infill_offset)        
+        
    
         # Add widgets     
         for wt in self.widget_arr.values():            
@@ -147,7 +202,7 @@ class VView(QMainWindow):
         quit_button       = self.add_button(lw_layout, "QUIT", bt_width, bt_height)       
 
         # Act connection        
-        quit_button.clicked.connect(QCoreApplication.instance().quit)    
+        quit_button.clicked.connect(self.quit)    
         load_button.clicked.connect(self.openStlDialog)
         slice_button.clicked.connect(self.slice)
         print_seq_button.clicked.connect(self.print_sequence)
@@ -383,7 +438,7 @@ class VView(QMainWindow):
             return
         self.view_slice.items = [] 
         self.mesh_info.init(self.mesh_info.pixel_size, self.mesh_info.first_layer_thickness, self.mesh_info.layer_thickness)
-        pts = mkspiral.gen_continous_path(self.mesh_info, "d:/images", self.mesh_info.get_layers(), 2000, -10)
+        pts = mkspiral.gen_continuous_path(self.mesh_info, "d:/images", self.mesh_info.get_layers(), 2000, -10)
             
         plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor('r'), width= 1, antialias=True)
         self.view_slice.addItem(plt)      
