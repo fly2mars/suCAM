@@ -133,8 +133,12 @@ class VView(QMainWindow):
             return
         return
     def update_variable_infill_offset(self):
-        new_value = self.widget_arr['infill_offset_edit'].text()        
-        self.conf.data['infill_offset'] = float(new_value)  
+        try:
+            new_value = self.widget_arr['infill_offset_edit'].text()
+            self.conf.data['infill_offset'] = float(new_value)  
+        except Exception as e:
+            return 
+        return 
                   
     def update_ui(self):
         self.widget_arr['first_layer_thickness_edit'].setText(str(self.conf.get('first_layer_thickness')))
@@ -344,6 +348,8 @@ class VView(QMainWindow):
      
         self.message('Slicing mesh...')
         
+        self.mesh_info.first_layer_thicknes = self.conf.get("first_layer_thickness")
+        self.mesh_info.layer_thickness = self.conf.get("layer_thickness")
         str_layers = str(self.mesh_info.get_layers())
         self.mesh_info.real_pixel_size, self.mesh_info.real_pixel_size, self.gcode_minx, self.gcode_miny = stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, 
                             self.mesh_info.image_height, self.out_path,
@@ -371,14 +377,15 @@ class VView(QMainWindow):
         try:
             self.message("Generate print sequence...")
         except Exception as e:
-            self.message(str(e))        
+            self.message(str(e))  
+   
     def fill(self):
         try:
             i = self.sl.value()
             self.message("Show slice {}.".format(i+1), False)
             curdir = os.getcwd()
             filepath = self.out_path % i
-            offset = -6
+            offset = self.conf.get("infill_offset")
             line_width = 1#int(abs(offset)/2)
             pe = pathengine.pathEngine()    
             pe.generate_contours_from_img(filepath, True)
@@ -400,12 +407,9 @@ class VView(QMainWindow):
             colors = generate_RGB_list(N)
             
             for boundary in group_contour.values():
-                iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)
-                idx = 0
-                for cs in iso_contours:
-                    for c in cs:
-                        pathengine.suPath2D.draw_line(np.vstack([c, c[0]]), pe.im, colors[idx],line_width) 
-                    idx += 1
+                spiral = mkspiral.spiral(pe, boundary, offset)
+                pathengine.suPath2D.draw_line(spiral, pe.im, colors[0],line_width)                 
+              
             
             cv2.imwrite(filepath, pe.im)
             tex1 = cv2.cvtColor(pe.im, cv2.COLOR_BGR2RGBA) 
@@ -417,28 +421,17 @@ class VView(QMainWindow):
         
         except Exception as e:
             self.message(str(e))
-                
-        
-        # gen fermat's curve
-        # gen 3d point n*3 matrix
-        
-        #n = 51
-        #y = np.linspace(-10,10,n)
-        #x = np.linspace(-10,10,100)
-        #for i in range(n):
-            #yi = np.array([y[i]]*100)
-            #d = (x**2 + yi**2)**0.5
-            #z = 10 * np.cos(d) / (d+1)
-            #pts = np.vstack([x,yi,z]).transpose()
-            #plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor((i,n*1.3)), width=(i+1)/10., antialias=True)
-            #self.view_slice.addItem(plt)        
-        return
+        return            
+  
     def gen_path(self):
         if self.mesh_info.mesh == None:
             return
         self.view_slice.items = [] 
+        self.mesh_info.first_layer_thicknes = self.conf.get("first_layer_thickness")
+        self.mesh_info.layer_thickness = self.conf.get("layer_thickness")        
         self.mesh_info.init(self.mesh_info.pixel_size, self.mesh_info.first_layer_thickness, self.mesh_info.layer_thickness)
-        pts = mkspiral.gen_continuous_path(self.mesh_info, "d:/images", self.mesh_info.get_layers(), 2000, -10)
+        
+        pts = mkspiral.gen_continuous_path(self.mesh_info, "d:/images", self.mesh_info.get_layers(), 2000, self.conf.get("infill_offset"))
             
         plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor('r'), width= 1, antialias=True)
         self.view_slice.addItem(plt)      

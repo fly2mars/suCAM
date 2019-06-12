@@ -71,6 +71,17 @@ class RDqueue():
                 del self.d[idx]
                 break
         return   
-
+    def append_left(self, i, j, d):
+        self.di.appendleft(i)
+        self.dj.appendleft(j)
+        self.d.appendleft(d)
+        
+    def move_to_end(self, i, j):
+        r = self.get_item(i,j)
+        if(r != []):            
+            self.remove_item(i,j)
+            self.append_left(i,j,r)            
+            
+            
     def size(self):
         return len(self.d)

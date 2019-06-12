@@ -127,7 +127,8 @@ def compute_region_area(r):
 def get_offset_contour(cs, offset):
     """
     get_ffset_contour(cs, -4)
-    """
+    @cs are contours list [[[],[]...]]
+    """  
     pco = pyclipper.PyclipperOffset()
     pco.AddPaths(cs, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
     ncs = pco.Execute(offset)
@@ -155,7 +156,9 @@ def find_surpported_region_in_layer(d, r, layer_id, offset = 8, ratio_thresh=0.8
         if ii == layer_id:         
             jj = d.dj[idx]
             r_t = d.d[idx]
-            r_t = get_offset_contour(r_t, offset)       # use offset contour
+            r_t = get_offset_contour(r_t, offset)       # use offset contour, maybe not exist
+            if len(r_t) == 0:                           # if r_t is too small
+                r_t = d.d[idx]
             inter_sec = intersect_area(r_b, r_t)
             ratio = 0
             if len(inter_sec) != 0:                
@@ -167,6 +170,45 @@ def find_surpported_region_in_layer(d, r, layer_id, offset = 8, ratio_thresh=0.8
 
     return r_t, r_j 
 
+def find_surpported_regions(d, r, layer_id, offset = 8, ratio_thresh=0.8):
+    """
+    Given a r(i,j), find the upper connected.
+     - We compute the ratio = intersection_area(r_bottom, r_top) / area(r_top) to estimate the relationship of bottom-up region
+     - If multiple regions are found, return all of them
+     - return [regions], [js]
+
+    Rules:      
+      - i+1 inter offset contour area Ai
+      - Ai intersect with i and get area I
+      - if Ai == I then i+1 is supported by i
+    Method:
+      - use clipper to calculate intersection area
+    """
+    j = -1
+    r_b = r
+    r_t = []
+    r_j = -1
+    rs = []
+    js = []
+    for idx in range(len(d.di)):
+        ii = d.di[idx] 
+        if ii == layer_id:         
+            jj = d.dj[idx]
+            r_t = d.d[idx]
+            r_t = get_offset_contour(r_t, offset)       # use offset contour, maybe not exist
+            if r_t == []:                           # if r_t is too small
+                r_t = d.d[idx]
+            inter_sec = intersect_area(r_b, r_t)
+            ratio = 0
+            if len(inter_sec) != 0:                
+                a = compute_region_area(inter_sec)
+                b = compute_region_area(r_t)
+                ratio = a / b
+            if ratio > ratio_thresh:
+                rs.append(r_t)
+                js.append(jj)
+
+    return rs, js 
 
 
 def intersect_area(r1, r2):
@@ -192,6 +234,87 @@ def spiral(pe, boundary,offset):
 ###########################
 #@ms: a meshInfo object
 ###########################
+def gen_continuous_path1(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
+    dist_th = collision_dist
+    N = slice_layers     
+    m = ms_info
+    m.set_layers(N)
+    
+    #slicing
+    remove_files(tmp_slice_path)  
+    curdir = os.getcwd()
+    out_path = tmp_slice_path+"/slice-%d.png"  
+    real_pixel_size, real_pixel_size, gcode_minx, gcode_miny = stl2pngfunc.stl2png(ms_info.path, N, m.image_width, 
+                                                                                   m.image_height, out_path,
+                        func = lambda i: print("slicing layer {}/{}".format(i+1,N))
+                        )    
+    #print sequence
+    R = [] #R = {r_ij}
+    S = [] #sequence with [[i,j]......]    
+    pe = pathengine.pathEngine()  
+    
+    for i in range(N):
+        img_file = out_path % i
+        rs = get_region_boundary_from_img(img_file, pe, True)       
+        R.append(rs)     
+        
+    d = RDqueue(R)      #d = di = dj = deque() 
+    r,i,j = d.get_end()
+    while d.size() != 0:          
+        if (i < N - 1) and (not is_interference(d, i, j, dist_th) ): 
+            S.append([i,j])
+            d.remove_item(i,j)            
+            i = i + 1     
+            r, j = find_surpported_region_in_layer(d, r, i, -6)
+
+            if j == -1:   
+                r, i, j = d.get_end() 
+                continue
+            if i == (N - 1): # reach the top
+                if not is_interference(d, i, j, dist_th):
+                    S.append([i,j])
+                    d.remove_item(i,j)
+                r,i,j = d.get_end()                
+        else:
+            r_next, i_next, j_next = d.get_end() 
+            if [i,j] == [i_next, j_next]:  #the extruder goes back and the region is not be appended
+                S.append([i,j]) 
+                d.remove_item(i,j)
+                r_next, i_next, j_next = d.get_end()
+            else:
+                if i <= i_next: # The new region is not lower than current, 
+                    S.append([i,j]) # so the nozzle doesn't need to go down. 
+                    d.remove_item(i,j)
+            r = r_next
+            i = i_next
+            j = j_next 
+            
+    # generate spiral and connect them
+    # todo: connect path on the nearest point
+    d = RDqueue(R)    
+    path = []
+    Z = 0.0
+    for i in range(0,len(S)-1):
+        iLayer = S[i][0]
+        r=d.get_item(iLayer, S[i][1])
+        cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
+        #transformation to 3d vector
+        z = [Z] * len(cs)
+        z = np.array(z).reshape([len(z),1])        
+        
+        if i== 0:
+            path = np.hstack([cs,z])            
+        else:
+            if iLayer == 1:
+                z += ms_info.first_layer_thickness
+            elif iLayer > 1:
+                z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
+            cs = np.hstack([cs,z])
+            path = np.vstack([path,cs])
+            
+        
+    
+    return path
 def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
     dist_th = collision_dist
     N = slice_layers     
@@ -213,11 +336,9 @@ def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 
     
     for i in range(N):
         img_file = out_path % i
-        rs = get_region_boundary_from_img(img_file, pe, True)
-        for r in rs:
-            for c in r:
-                print(c.shape)
+        rs = get_region_boundary_from_img(img_file, pe, True)       
         R.append(rs)     
+        
     d = RDqueue(R)      #d = di = dj = deque() 
     r,i,j = d.get_end()
     while d.size() != 0:          
@@ -225,11 +346,17 @@ def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 
             S.append([i,j])
             d.remove_item(i,j)            
             i = i + 1     
-            r, j = find_surpported_region_in_layer(d, r, i, -6)
+            rs, js = find_surpported_regions(d, r, i, -6)
 
-            if j == -1:   
+            if js == []:   
                 r, i, j = d.get_end() 
                 continue
+            else:
+                j = js[0]
+                r = rs[0]                
+                for idx in range(1,len(js)):
+                    d.move_to_end(i,idx)                    
+                    
             if i == (N - 1): # reach the top
                 if not is_interference(d, i, j, dist_th):
                     S.append([i,j])
@@ -237,7 +364,7 @@ def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 
                 r,i,j = d.get_end()                
         else:
             r_next, i_next, j_next = d.get_end() 
-            if [i,j] == [i_next, j_next]:  #the nozzle goes back and the region is not be appended
+            if [i,j] == [i_next, j_next]:  #the extruder goes back and the region is not be appended
                 S.append([i,j]) 
                 d.remove_item(i,j)
                 r_next, i_next, j_next = d.get_end()
