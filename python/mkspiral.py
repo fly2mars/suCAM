@@ -55,9 +55,10 @@ def get_region_boundary_from_img(img_path, pe, is_reverse=False):
     #closed region
     cs_region_list = []
     for cs_region in group_boundary.values():
-        #resample
-        for i in range(len(cs_region)):
-            cs_region[i] = pathengine.suPath2D.resample_curve_by_equal_dist(cs_region[i], 4) 
+        #resample        
+        for i in range(len(cs_region)):            
+            cs_region[i] = pathengine.suPath2D.resample_curve_by_equal_dist(cs_region[i], 4)         
+        
         cs_region_list.append(cs_region)
     return cs_region_list
 
@@ -71,13 +72,13 @@ def is_interference(d, i, j, thresh):
     @return
       True: interference 
       False: not interference 
-    '''
-    #print("({}, {})".format(i,j))
+    '''    
     is_interfere = False
     r1 = d.get_item(i,j)
     rs, js = d.get_items(i)
     for idx in range(len(rs)):
         if js[idx] != j:
+            #print("(length of rs[{}] = {})".format(idx,len(rs[idx][0])))  #debug
             pid_c1, pid_c2, min_dist = get_min_dist(r1, rs[idx])
             if min_dist > thresh:
                 return True
@@ -129,9 +130,12 @@ def get_offset_contour(cs, offset):
     get_ffset_contour(cs, -4)
     @cs are contours list [[[],[]...]]
     """  
-    pco = pyclipper.PyclipperOffset()
-    pco.AddPaths(cs, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-    ncs = pco.Execute(offset)
+    try:
+        pco = pyclipper.PyclipperOffset()
+        pco.AddPaths(cs, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+        ncs = pco.Execute(offset)
+    except Exception as e:
+        return []
     return ncs
 def find_surpported_region_in_layer(d, r, layer_id, offset = 8, ratio_thresh=0.8):
     """
@@ -170,7 +174,7 @@ def find_surpported_region_in_layer(d, r, layer_id, offset = 8, ratio_thresh=0.8
 
     return r_t, r_j 
 
-def find_surpported_regions(d, r, layer_id, offset = 8, ratio_thresh=0.8):
+def find_surpported_regions(d, r, layer_id, offset = -4, ratio_thresh=0.6):
     """
     Given a r(i,j), find the upper connected.
      - We compute the ratio = intersection_area(r_bottom, r_top) / area(r_top) to estimate the relationship of bottom-up region
@@ -190,38 +194,50 @@ def find_surpported_regions(d, r, layer_id, offset = 8, ratio_thresh=0.8):
     r_j = -1
     rs = []
     js = []
+    rem_group = []
     for idx in range(len(d.di)):
         ii = d.di[idx] 
         if ii == layer_id:         
             jj = d.dj[idx]
-            r_t = d.d[idx]
-            r_t = get_offset_contour(r_t, offset)       # use offset contour, maybe not exist
-            if r_t == []:                           # if r_t is too small
-                r_t = d.d[idx]
+            r_t = d.d[idx]           
+            #r_t = get_offset_contour(r_t, offset)       # use offset contour, maybe not exist
+            #if r_t == []                      
             inter_sec = intersect_area(r_b, r_t)
+            if(inter_sec == None):
+                rem_group.append([ii,jj])
+                continue
             ratio = 0
             if len(inter_sec) != 0:                
-                a = compute_region_area(inter_sec)
-                b = compute_region_area(r_t)
-                ratio = a / b
+                inter_area = compute_region_area(inter_sec)
+                top_area = compute_region_area(r_t)
+                ratio = abs(inter_area / top_area)
+            else:
+                ration = 0
             if ratio > ratio_thresh:
                 rs.append(r_t)
                 js.append(jj)
 
+    for idx in rem_group:
+        d.remove_item(idx[0],idx[1])
     return rs, js 
 
 
 def intersect_area(r1, r2):
     """
     return the contours of the intersection area of r1 and r2
+    if r2 or is a line
     @r1 consists contours of an region in layer i
     @r2 consists contours of an region in layer i + 1
     """    
-    pc = pyclipper.Pyclipper()
-    pc.AddPaths(r1, pyclipper.PT_CLIP, True)
-    pc.AddPaths(r2, pyclipper.PT_SUBJECT, True)    
-    solution = pc.Execute(pyclipper.CT_INTERSECTION, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD)    
+    try:
+        pc = pyclipper.Pyclipper()
+        pc.AddPaths(r1, pyclipper.PT_CLIP, True)
+        pc.AddPaths(r2, pyclipper.PT_SUBJECT, True)    
+        solution = pc.Execute(pyclipper.CT_INTERSECTION, pyclipper.PFT_EVENODD, pyclipper.PFT_EVENODD)    
+    except:
+        return None
     return solution
+
 
 
 def spiral(pe, boundary,offset):    
@@ -380,10 +396,11 @@ def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 
     # todo: connect path on the nearest point
     d = RDqueue(R)    
     path = []
-    Z = 0.0
+    Z = 0.0   
+  
     for i in range(0,len(S)-1):
         iLayer = S[i][0]
-        r=d.get_item(iLayer, S[i][1])
+        r=d.get_item(iLayer, S[i][1])           
         cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
         #transformation to 3d vector
         z = [Z] * len(cs)

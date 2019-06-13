@@ -215,10 +215,16 @@ class suPath2D:
         """
         id1 = id2 = -1
         kappa, smooth = css.compute_curve_css(c1, 4)  
-        css_idx = css.find_css_point(kappa)
+        css_idx = css.find_css_point(kappa)   
         c = []
         for i in css_idx:
             c.append(c1[i])
+        #debug
+        #print("len[c]={}, len[c2]={}".format(len(c),len(c2)))
+        if len(c) == 0:  #if no css point
+            c = c1
+            id1, id2, min_d = suPath2D.find_closest_point_pair(c,c2)
+            return id1, id2, min_d 
         id1, id2, min_d = suPath2D.find_closest_point_pair(c,c2)
         return css_idx[id1], id2, min_d 
     @staticmethod
@@ -828,9 +834,10 @@ class pathEngine:
                         msg = '{} insert {}'.format(ic+1, i+1)
                         print(msg)                        
                     else:
-                        spirals[i] = self.connect_two_pockets(spirals[i],spirals[ic], abs(offset))
-                        msg = '{} insert {}'.format(i+1, ic+1)
-                        print(msg)                        
+                        if (len(spirals[ic])) > 0:
+                            spirals[i] = self.connect_two_pockets(spirals[i],spirals[ic], abs(offset))
+                            msg = '{} insert {}'.format(i+1, ic+1)
+                            print(msg)                        
     
     
             return      

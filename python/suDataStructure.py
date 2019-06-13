@@ -1,5 +1,5 @@
 from collections import deque
-import sys
+import sys,math
 #################################
 # hold three dqeue simutaneously
 #################################
@@ -10,14 +10,18 @@ class RDqueue():
     def __init__(self, R):
         """
         init with all regions in slices
-        Note: It 
+        Note: It remove openned contour
         """
         self.d = deque()
         self.di = deque()
         self.dj = deque()
         for i in range(len(R)):
             for j in range(len(R[i])):
-                self.d.append(R[i][j])
+                c = R[i][j]
+                if (len(c) < 10 ):
+                    if self.is_a_line(c) or len(c) == 0 or self.is_nan_exist(c):
+                        continue
+                self.d.append(c)
                 self.di.append(i)
                 self.dj.append(j)         
         return
@@ -85,3 +89,18 @@ class RDqueue():
             
     def size(self):
         return len(self.d)
+    
+    @staticmethod
+    def is_a_line(c):
+        """
+        @c  is a list [[p1,p2...pn]]
+        """
+        x = [i[0] for i in c[0]]
+        y = [i[1] for i in c[0]]
+        return all(i == x[0] for i in x) or all(i == y[0] for i in y)   
+    
+    @staticmethod
+    def is_nan_exist(c):
+        x = [i[0] for i in c[0]]
+        y = [i[1] for i in c[0]]
+        return any([math.isnan(i) for i in x]) or any([math.isnan(i) for i in y]) 
