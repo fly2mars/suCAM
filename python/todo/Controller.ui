@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>804</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>FreeCAM多轴打印系统</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QProgressBar" name="progressBar">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>550</y>
+      <width>801</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="value">
+     <number>24</number>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>140</y>
+      <width>111</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>连接设备</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="groupBox">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>8</y>
+      <width>241</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>机械臂信息</string>
+    </property>
+    <widget class="QLabel" name="label_name">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>221</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>名称：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_addr">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>60</y>
+       <width>221</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>地址：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_addr_2">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>90</y>
+       <width>211</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>状态：</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="pushButton_2">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>310</y>
+      <width>111</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>连接设备</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_2">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>180</y>
+      <width>241</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>挤出机信息</string>
+    </property>
+    <widget class="QLabel" name="label_name_2">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>221</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>地址：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_addr_3">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>60</y>
+       <width>221</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>温度：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_addr_4">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>90</y>
+       <width>211</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>状态：</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_3">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>10</y>
+      <width>531</width>
+      <height>161</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>代码浏览</string>
+    </property>
+    <widget class="QTextEdit" name="textEdit">
+     <property name="geometry">
+      <rect>
+       <x>5</x>
+       <y>20</y>
+       <width>521</width>
+       <height>131</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="pushButton_3">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>140</y>
+      <width>111</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>断开设备</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_4">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>180</y>
+      <width>261</width>
+      <height>161</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>状态示意</string>
+    </property>
+    <widget class="QOpenGLWidget" name="openGLWidget">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>241</width>
+       <height>131</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_5">
+    <property name="geometry">
+     <rect>
+      <x>540</x>
+      <y>180</y>
+      <width>251</width>
+      <height>161</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>质量评价</string>
+    </property>
+    <widget class="QOpenGLWidget" name="openGLWidget_2">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>20</y>
+       <width>231</width>
+       <height>131</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="pushButton_4">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>310</y>
+      <width>111</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>初始化</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_6">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>350</y>
+      <width>241</width>
+      <height>121</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>打印状态</string>
+    </property>
+    <widget class="QLabel" name="label_name_3">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>30</y>
+       <width>221</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>位置：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_addr_5">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>60</y>
+       <width>221</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>速度：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_addr_6">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>90</y>
+       <width>211</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>进度：</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QPushButton" name="pushButton_5">
+    <property name="geometry">
+     <rect>
+      <x>140</x>
+      <y>480</y>
+      <width>111</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>停止</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="pushButton_6">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>480</y>
+      <width>111</width>
+      <height>28</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>打印</string>
+    </property>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_7">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>350</y>
+      <width>531</width>
+      <height>161</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>信息</string>
+    </property>
+    <widget class="QTextEdit" name="textEdit_2">
+     <property name="geometry">
+      <rect>
+       <x>5</x>
+       <y>20</y>
+       <width>521</width>
+       <height>131</height>
+      </rect>
+     </property>
+    </widget>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>804</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu">
+    <property name="title">
+     <string>文件</string>
+    </property>
+    <addaction name="action_GCode"/>
+    <addaction name="action_5"/>
+    <addaction name="action_6"/>
+    <addaction name="separator"/>
+    <addaction name="action_8"/>
+   </widget>
+   <widget class="QMenu" name="menu_2">
+    <property name="title">
+     <string>系统</string>
+    </property>
+    <addaction name="action_2"/>
+    <addaction name="action_3"/>
+    <addaction name="action_4"/>
+   </widget>
+   <widget class="QMenu" name="menu_3">
+    <property name="title">
+     <string>帮助</string>
+    </property>
+    <addaction name="action"/>
+   </widget>
+   <addaction name="menu"/>
+   <addaction name="menu_2"/>
+   <addaction name="menu_3"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="action">
+   <property name="text">
+    <string>关于</string>
+   </property>
+  </action>
+  <action name="action_2">
+   <property name="text">
+    <string>设备连接设置</string>
+   </property>
+  </action>
+  <action name="action_3">
+   <property name="text">
+    <string>挤出机设置</string>
+   </property>
+  </action>
+  <action name="action_4">
+   <property name="text">
+    <string>打印平面设置</string>
+   </property>
+  </action>
+  <action name="action_GCode">
+   <property name="text">
+    <string>装入GCode..</string>
+   </property>
+  </action>
+  <action name="action_5">
+   <property name="text">
+    <string>装入轨迹..</string>
+   </property>
+  </action>
+  <action name="action_6">
+   <property name="text">
+    <string>装入模型..</string>
+   </property>
+  </action>
+  <action name="action_8">
+   <property name="text">
+    <string>装入配置..</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
