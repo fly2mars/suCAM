@@ -12,20 +12,24 @@ def pngname(optionoutputfile, i, z):
         return optionoutputfile % z
     return optionoutputfile
 
-def stl2png(stlfile, nlayers, image_width, image_height, outfiles, func=None):
+def stl2png(stlfile, z_list, image_width, image_height, out_path, border_size, func=None):
     tzs = TriZSlice(True)
     tzs.LoadSTLfile(stlfile, transmaps["unit"])
     
-    extra = "5%"
+    extra = str(border_size)   # with unit mm, otherwise 'v%'
     tzs.SetExtents(extra)
     x_pixel_size, y_pixel_size, x0, y0 = tzs.BuildPixelGridStructures(image_width, image_height)
     
-    for i in range(nlayers):
-        z = tzs.zlo + (tzs.zhi - tzs.zlo)*(i + 0.5)/nlayers
-        tzs.SliceToPNG(z, pngname(outfiles, i, z))
+    #for i in range(nlayers):
+    i = 0
+    for z in z_list:
+        #z = tzs.zlo + (tzs.zhi - tzs.zlo)*(i + 0.5)/nlayers
+        tzs.SliceToPNG(z, pngname(out_path, i, z))
         # return current frame number
         if(func != None):
-            func(i)
+            func(i)        
+        i += 1
+        
     # added by Yao        
     return x_pixel_size, y_pixel_size, x0, y0  
           

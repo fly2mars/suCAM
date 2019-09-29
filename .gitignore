@@ -1,0 +1,10 @@
+__pycache__/*
+outputs/*
+.idea/*
+.idea/workspace.xml
+.idea/vcs.xml
+.idea/stl-slicer.iml
+.idea/modules.xml
+.idea/misc.xml
+dist/*
+build/*

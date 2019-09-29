@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import sys
 import os
 import cv2
@@ -139,17 +140,23 @@ class VView(QMainWindow):
         except Exception as e:
             return 
         return 
-                  
+    def update_var(self):
+        self.update_variable_infill_offset()
+        self.update_variable_layer_thickness()
+        self.update_variable_first_layer_thickness()
+        
+        
     def update_ui(self):
         self.widget_arr['first_layer_thickness_edit'].setText(str(self.conf.get('first_layer_thickness')))
         self.widget_arr['layer_thickness_edit'].setText      (str(self.conf.get('layer_thickness')))
         self.widget_arr['infill_offset_edit'].setText      (str(self.conf.get('infill_offset')))
+        self.update()
        
     def initUI(self):      
         
         self.widget_arr = {} 
         self.view_status = QTextEdit()        
-        self.view_status.setDisabled(True)
+        #self.view_status.setDisabled(True)
         self.message(self.mesh_info.get_info())
         self.message("Start from loading a mesh.")
 
@@ -276,7 +283,7 @@ class VView(QMainWindow):
 
         if fname[0]:
             ext_file = path.splitext(fname[0])[1]
-            if  ext_file in fname[1]:
+            if  ext_file.lower() in fname[1]:
                 self.initParam()
                 self.message("Load " + fname[0])
                 self.model_path = fname[0]
@@ -348,13 +355,23 @@ class VView(QMainWindow):
      
         self.message('Slicing mesh...')
         
+        self.update_var()
         self.mesh_info.first_layer_thicknes = self.conf.get("first_layer_thickness")
         self.mesh_info.layer_thickness = self.conf.get("layer_thickness")
-        str_layers = str(self.mesh_info.get_layers())
-        self.mesh_info.real_pixel_size, self.mesh_info.real_pixel_size, self.gcode_minx, self.gcode_miny = stl2pngfunc.stl2png(self.model_path, self.mesh_info.get_layers(), self.mesh_info.image_width, 
-                            self.mesh_info.image_height, self.out_path,
+        nLayer = self.mesh_info.get_layers()
+        z_list = self.mesh_info.get_z_list()
+        str_layers = str(nLayer)
+        
+        x_pixel_size, y_pixel_size, x0, y0 = stl2pngfunc.stl2png(self.mesh_info.path, 
+                                                                 z_list, 
+                                                                 self.mesh_info.image_width, self.mesh_info.image_height, 
+                                                                 self.out_path,
+                                                                 self.mesh_info.border_size,
                             func = lambda i: self.message("slicing layer " + str(i+1) + "/" + str_layers, False)
                             )
+        
+        
+        self.mesh_info.real_pixel_size, self.mesh_info.real_pixel_size, self.gcode_minx, self.gcode_miny = x_pixel_size, y_pixel_size, x0, y0 
         self.message('Slicing mesh into ' + self.out_path)
         self.message(self.mesh_info.get_info() )
         
@@ -427,13 +444,24 @@ class VView(QMainWindow):
         if self.mesh_info.mesh == None:
             return
         self.view_slice.items = [] 
+        self.update_var()
         self.mesh_info.first_layer_thicknes = self.conf.get("first_layer_thickness")
         self.mesh_info.layer_thickness = self.conf.get("layer_thickness")        
-        self.mesh_info.init(self.mesh_info.pixel_size, self.mesh_info.first_layer_thickness, self.mesh_info.layer_thickness)
-        
-        pts = mkspiral.gen_continuous_path(self.mesh_info, "d:/images", self.mesh_info.get_layers(), 2000, self.conf.get("infill_offset"))
+        #self.mesh_info.init(self.mesh_info.pixel_size, self.mesh_info.first_layer_thickness, self.mesh_info.layer_thickness)
+        self.message(self.mesh_info.get_info())
+        curdir = os.getcwd()        
+        if(path.isdir("images")):
+            #remove all files in images
+            filelist = [ f for f in os.listdir("./images") if f.endswith(".png") ]            
+            for f in filelist:
+                os.remove(os.path.join(curdir+"/images", f))  
+        else:
+            os.mkdir("images")
+        self.out_path = os.path.join(curdir, "images")        
+        self.path_verts = mkspiral.gen_continuous_path(self.mesh_info, self.out_path, 2000, self.conf.get("infill_offset"))
             
-        plt = gl.GLLinePlotItem(pos=pts, color=pg.glColor('r'), width= 1, antialias=True)
+        plt = gl.GLLinePlotItem(pos=self.path_verts, color=pg.glColor('r'), width= 1, antialias=True)
+        
         self.view_slice.addItem(plt)      
         self.view_slice.setBackgroundColor(pg.mkColor('w'))
         return
@@ -452,6 +480,20 @@ class VView(QMainWindow):
         self.view_slice.addItem(v1)
         
     def gen_gcode(self):
+        fname = QFileDialog.getSaveFileName(self, 'Save file', '', 
+                                            "Mesh (*.gcode);")
+
+        if fname[0]:
+            ext_file = path.splitext(fname[0])[1]
+            if  ext_file.lower() not in fname[1]:
+                
+                self.gcode_path = fname[0] + '.gcode'
+            else:
+                self.gcode_path = fname[0]
+        else:
+            return
+        
+        np.savetxt(self.gcode_path+'.txt', self.path_verts, fmt='%.4f')                
           
         return
     def clear(self):

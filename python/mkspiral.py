@@ -250,99 +250,19 @@ def spiral(pe, boundary,offset):
 ###########################
 #@ms: a meshInfo object
 ###########################
-def gen_continuous_path1(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
-    dist_th = collision_dist
-    N = slice_layers     
+def gen_continuous_path(ms_info, tmp_slice_path, collision_dist = 3, offset = -4):
+    dist_th = collision_dist   
     m = ms_info
-    m.set_layers(N)
+    N = m.get_layers()
+    z_list = m.get_z_list()
     
     #slicing
     remove_files(tmp_slice_path)  
     curdir = os.getcwd()
     out_path = tmp_slice_path+"/slice-%d.png"  
-    real_pixel_size, real_pixel_size, gcode_minx, gcode_miny = stl2pngfunc.stl2png(ms_info.path, N, m.image_width, 
+    real_pixel_size, real_pixel_size, gcode_minx, gcode_miny = stl2pngfunc.stl2png(m.path, z_list, m.image_width, 
                                                                                    m.image_height, out_path,
-                        func = lambda i: print("slicing layer {}/{}".format(i+1,N))
-                        )    
-    #print sequence
-    R = [] #R = {r_ij}
-    S = [] #sequence with [[i,j]......]    
-    pe = pathengine.pathEngine()  
-    
-    for i in range(N):
-        img_file = out_path % i
-        rs = get_region_boundary_from_img(img_file, pe, True)       
-        R.append(rs)     
-        
-    d = RDqueue(R)      #d = di = dj = deque() 
-    r,i,j = d.get_end()
-    while d.size() != 0:          
-        if (i < N - 1) and (not is_interference(d, i, j, dist_th) ): 
-            S.append([i,j])
-            d.remove_item(i,j)            
-            i = i + 1     
-            r, j = find_surpported_region_in_layer(d, r, i, -6)
-
-            if j == -1:   
-                r, i, j = d.get_end() 
-                continue
-            if i == (N - 1): # reach the top
-                if not is_interference(d, i, j, dist_th):
-                    S.append([i,j])
-                    d.remove_item(i,j)
-                r,i,j = d.get_end()                
-        else:
-            r_next, i_next, j_next = d.get_end() 
-            if [i,j] == [i_next, j_next]:  #the extruder goes back and the region is not be appended
-                S.append([i,j]) 
-                d.remove_item(i,j)
-                r_next, i_next, j_next = d.get_end()
-            else:
-                if i <= i_next: # The new region is not lower than current, 
-                    S.append([i,j]) # so the nozzle doesn't need to go down. 
-                    d.remove_item(i,j)
-            r = r_next
-            i = i_next
-            j = j_next 
-            
-    # generate spiral and connect them
-    # todo: connect path on the nearest point
-    d = RDqueue(R)    
-    path = []
-    Z = 0.0
-    for i in range(0,len(S)-1):
-        iLayer = S[i][0]
-        r=d.get_item(iLayer, S[i][1])
-        cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
-        #transformation to 3d vector
-        z = [Z] * len(cs)
-        z = np.array(z).reshape([len(z),1])        
-        
-        if i== 0:
-            path = np.hstack([cs,z])            
-        else:
-            if iLayer == 1:
-                z += ms_info.first_layer_thickness
-            elif iLayer > 1:
-                z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
-            cs = np.hstack([cs,z])
-            path = np.vstack([path,cs])
-            
-        
-    
-    return path
-def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 3, offset = -4):
-    dist_th = collision_dist
-    N = slice_layers     
-    m = ms_info
-    m.set_layers(N)
-    
-    #slicing
-    remove_files(tmp_slice_path)  
-    curdir = os.getcwd()
-    out_path = tmp_slice_path+"/slice-%d.png"  
-    real_pixel_size, real_pixel_size, gcode_minx, gcode_miny = stl2pngfunc.stl2png(ms_info.path, N, m.image_width, 
-                                                                                   m.image_height, out_path,
+                                                                                   m.border_size,
                         func = lambda i: print("slicing layer {}/{}".format(i+1,N))
                         )    
     #print sequence
@@ -398,23 +318,31 @@ def gen_continuous_path(ms_info, tmp_slice_path, slice_layers, collision_dist = 
     path = []
     Z = 0.0   
   
-    for i in range(0,len(S)-1):
+    z_list[-1] = z_list[-2] + m.layer_thickness
+    for i in range(0,len(S)):
         iLayer = S[i][0]
         r=d.get_item(iLayer, S[i][1])           
         cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
         #transformation to 3d vector
+        Z = z_list[iLayer]
         z = [Z] * len(cs)
-        z = np.array(z).reshape([len(z),1])        
+        z = np.array(z).reshape([len(z),1])   
         
         if i== 0:
             path = np.hstack([cs,z])            
         else:
-            if iLayer == 1:
-                z += ms_info.first_layer_thickness
-            elif iLayer > 1:
-                z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
             cs = np.hstack([cs,z])
             path = np.vstack([path,cs])
+        
+        #if i== 0:
+            #path = np.hstack([cs,z])            
+        #else:
+            #if iLayer == 1:
+                #z += ms_info.first_layer_thickness
+            #elif iLayer > 1:
+                #z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
+            #cs = np.hstack([cs,z])
+            #path = np.vstack([path,cs])
             
         
     
