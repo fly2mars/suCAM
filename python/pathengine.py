@@ -235,7 +235,7 @@ class suPath2D:
         example:
            suPath2D.draw_text(str(i + 1), iso_contours_2D[i][0], pe.im)
         """
-        if point_lists == None or len(point_lists) == 0:
+        if point_lists is None or len(point_lists) == 0:
             return
         point_lists = point_lists.astype(int)
         pts = point_lists.reshape((-1,1,2))
@@ -310,13 +310,21 @@ class pathEngine:
         @contours(python list of list)
         @hiearchy reprensents a matrix, the details can be find in https://docs.opencv.org/trunk/d9/d8b/tutorial_py_contours_hierarchy.html
         """
+        # check OpenCV version
+        major = cv2.__version__.split('.')[0]  
+        
         im = cv2.imread(imagePath, cv2.IMREAD_GRAYSCALE)
-        if isRevertImage :
+        if isRevertImage:
             im = 255 - im
-        ret, thresh = cv2.threshold(im, 127, 255, 1)
-       
-        self.im, self.contours, self.hiearchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        return self.im, self.contours, self.hiearchy
+        ret, thresh = cv2.threshold(im, 127, 255, 1)        
+         
+        if major == '3':
+            self.im, self.contours, self.hiearchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        else:
+            self.contours, self.hiearchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            self.im = im
+            
+        return im, self.contours, self.hiearchy
 
     def recusive_add_node(self, node, idx):
         """
@@ -356,7 +364,7 @@ class pathEngine:
         ref: http://www.angusj.com/delphi/clipper/documentation/Docs/Units/ClipperLib/Classes/PolyTree/_Body.htm
         ref: https://stackoverflow.com/questions/32182544/pyclipper-crash-on-trivial-case-terminate-called-throwing-an-exception  
         """
-        if self.hiearchy == None:
+        if self.hiearchy is None:
             return
         # find first contour in hiearchy-0
         root = pyclipper.PyPolyNode()
@@ -443,7 +451,7 @@ class pathEngine:
         if (func != None):           
             func(root)
         else:
-            if(root.Parent == None):
+            if(root.Parent is None):
                 print("-----")
             msg = "Node {} has {} child node".format(root.depth, len(root.Childs))
             print(msg)

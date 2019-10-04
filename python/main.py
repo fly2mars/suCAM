@@ -91,7 +91,8 @@ class VView(QMainWindow):
         self.slices = {}
         self.out_path = ""
         
-        self.is_fill_path = False        
+        self.is_fill_path = False 
+        self.path_verts = []
         
         return 
     def quit(self):
@@ -341,7 +342,7 @@ class VView(QMainWindow):
         if( len(self.mesh) == 0):
             self.message('Load mesh first!')
             return
-        
+    
         self.slices.clear()
         curdir = os.getcwd()        
         if(path.isdir("images")):
@@ -352,35 +353,35 @@ class VView(QMainWindow):
         else:
             os.mkdir("images")
         self.out_path = os.path.join(curdir, "images/slice-%d.png")
-     
+    
         self.message('Slicing mesh...')
-        
+    
         self.update_var()
         self.mesh_info.first_layer_thicknes = self.conf.get("first_layer_thickness")
         self.mesh_info.layer_thickness = self.conf.get("layer_thickness")
         nLayer = self.mesh_info.get_layers()
         z_list = self.mesh_info.get_z_list()
         str_layers = str(nLayer)
-        
+    
         x_pixel_size, y_pixel_size, x0, y0 = stl2pngfunc.stl2png(self.mesh_info.path, 
-                                                                 z_list, 
-                                                                 self.mesh_info.image_width, self.mesh_info.image_height, 
-                                                                 self.out_path,
-                                                                 self.mesh_info.border_size,
-                            func = lambda i: self.message("slicing layer " + str(i+1) + "/" + str_layers, False)
-                            )
-        
-        
+                                                                     z_list, 
+                                                                     self.mesh_info.image_width, self.mesh_info.image_height, 
+                                                                     self.out_path,
+                                                                     self.mesh_info.border_size,
+                                                                     func = lambda i: self.message("slicing layer " + str(i+1) + "/" + str_layers, False)
+                                )
+    
+    
         self.mesh_info.real_pixel_size, self.mesh_info.real_pixel_size, self.gcode_minx, self.gcode_miny = x_pixel_size, y_pixel_size, x0, y0 
         self.message('Slicing mesh into ' + self.out_path)
         self.message(self.mesh_info.get_info() )
-        
+    
         im = cv2.imread(self.out_path % 0)
         tex1 = cv2.cvtColor(im, cv2.COLOR_BGR2RGBA) 
         v1 = gl.GLImageItem(tex1)
         v1.translate(0, 0, 0)        
         self.view_slice.addItem(v1)  
-        
+    
         # activate slider 
         self.sl.setMinimum(0)
         self.sl.setMaximum(self.mesh_info.get_layers() - 1)  
@@ -423,13 +424,15 @@ class VView(QMainWindow):
             N = 50
             colors = generate_RGB_list(N)
             
+            bg_img = pe.im.copy()
+            bg_img = np.full(bg_img.shape, 255, dtype=np.uint8)
             for boundary in group_contour.values():
                 spiral = mkspiral.spiral(pe, boundary, offset)
-                pathengine.suPath2D.draw_line(spiral, pe.im, colors[0],line_width)                 
+                pathengine.suPath2D.draw_line(spiral, bg_img, colors[0],line_width)                 
               
-            
-            cv2.imwrite(filepath, pe.im)
-            tex1 = cv2.cvtColor(pe.im, cv2.COLOR_BGR2RGBA) 
+            # for show
+            cv2.imwrite(filepath, bg_img)
+            tex1 = cv2.cvtColor(bg_img, cv2.COLOR_BGR2RGBA) 
             v1 = gl.GLImageItem(tex1)
             
             v1.translate(0, 0, i * self.mesh_info.layer_thickness)        
@@ -438,7 +441,7 @@ class VView(QMainWindow):
         
         except Exception as e:
             self.message(str(e))
-        return            
+        return              
   
     def gen_path(self):
         if self.mesh_info.mesh == None:
@@ -466,6 +469,8 @@ class VView(QMainWindow):
         self.view_slice.setBackgroundColor(pg.mkColor('w'))
         return
     def show_slice(self):
+        if len(self.slices) == 0:            
+            return
         i = self.sl.value()
         self.message("Show slice {}.".format(i+1), False)
         curdir = os.getcwd()
@@ -480,6 +485,9 @@ class VView(QMainWindow):
         self.view_slice.addItem(v1)
         
     def gen_gcode(self):
+        if len(self.path_verts) == 0:
+            self.message("Please press `Gen Path` first")
+            return
         fname = QFileDialog.getSaveFileName(self, 'Save file', '', 
                                             "Mesh (*.gcode);")
 
@@ -499,6 +507,8 @@ class VView(QMainWindow):
     def clear(self):
         self.message(self.mesh_info.get_info())
         self.is_fill_path = False
+        self.slices.clear()
+        self.path_verts = []
         
         str = ''
         for wt in self.widget_arr.keys():            
