@@ -469,9 +469,11 @@ class VView(QMainWindow):
         self.view_slice.setBackgroundColor(pg.mkColor('w'))
         return
     def show_slice(self):
-        if len(self.slices) == 0:            
-            return
+        #if len(self.slices) == 0:            
+        #    return
         i = self.sl.value()
+        if i < 0:
+            return
         self.message("Show slice {}.".format(i+1), False)
         curdir = os.getcwd()
         

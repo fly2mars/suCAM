@@ -1,1 +1,1 @@
-{"config_file": "e:\\git\\suCAM\\python\\configs\\config.json", "first_layer_thickness": 0.3, "layer_thickness": 0.2, "infill_offset": -4.0}
+{"config_file": "e:\\git\\suCAM\\python\\configs\\config.json", "first_layer_thickness": 0.3, "layer_thickness": 1.0, "infill_offset": -4.0}
