@@ -84,6 +84,39 @@ def is_interference(d, i, j, thresh):
                 return True
 
     return False
+########################################
+# Consider about the constraint of z and xy
+########################################
+def is_interference_xyz(msinfo, d, i, j, constraint_xy, constraint_z):
+    '''
+    @d is regions deque
+    @i current id of layer
+    @j current id of region 
+    @constraint_xy is a distance threshold in a layer
+    @constriant_z is distance threshold between layers, the unit is mm
+                    current_z = (i - j)
+
+    @return
+      True: interference 
+      False: not interference 
+    '''    
+    is_interfere = False
+    r1 = d.get_item(i,j)
+    rs, js = d.get_items(i)
+    for idx in range(len(rs)):
+        if js[idx] != j:
+            #print("(length of rs[{}] = {})".format(idx,len(rs[idx][0])))  #debug
+            pid_c1, pid_c2, min_dist = get_min_dist(r1, rs[idx])
+            if min_dist > constraint_xy:
+                return True
+            r_bot, i_bot, j_bot  = d.get_end()
+            z_dif = 0
+            for iLayer in range(i_bot, i):
+                z_dif += msinfo.z_list[iLayer]
+            if z_dif >= constraint_z:
+                return True
+
+    return False
 
 def get_min_dist(b1, b2):
     """
@@ -347,6 +380,110 @@ def gen_continuous_path(ms_info, tmp_slice_path, collision_dist = 3, offset = -4
         
     
     return path
+
+###########################
+# @ms_info: a meshInfo object
+# @tmp_slice_path:  a temperary path dir for saving images
+# @collision_dist_xy:  xy size of nozzle, default is 30(the unit is mm)
+# @collision_dist_z:  z size of nozzle, default is 30(the unit is mm)
+# @offset: internal offset for generating iso-contour
+###########################
+def gen_continuous_path_with_constraint(ms_info, tmp_slice_path, collision_dist_xy= 30, collision_dist_z= 30, offset = -4):
+    m = ms_info
+    N = m.get_layers()
+    z_list = m.get_z_list()
+    
+    #slicing
+    remove_files(tmp_slice_path)  
+    curdir = os.getcwd()
+    out_path = tmp_slice_path+"/slice-%d.png"  
+    real_pixel_size, real_pixel_size, gcode_minx, gcode_miny = stl2pngfunc.stl2png(m.path, z_list, m.image_width, 
+                                                                                   m.image_height, out_path,
+                                                                                   m.border_size,
+                        func = lambda i: print("slicing layer {}/{}".format(i+1,N))
+                        )    
+    #print sequence
+    R = [] #R = {r_ij}
+    S = [] #sequence with [[i,j]......]    
+    pe = pathengine.pathEngine()  
+    
+    for i in range(N):
+        img_file = out_path % i
+        rs = get_region_boundary_from_img(img_file, pe, True)       
+        R.append(rs)     
+        
+    d = RDqueue(R)      #d = di = dj = deque() 
+    r,i,j = d.get_end()
+    while d.size() != 0:          
+        if (i < N - 1) and (not is_interference_xyz(ms_info, d, i, j, collision_dist_xy, collision_dist_z) ): 
+            S.append([i,j])
+            d.remove_item(i,j)            
+            i = i + 1     
+            rs, js = find_surpported_regions(d, r, i, -6)
+
+            if js == []:   
+                r, i, j = d.get_end() 
+                continue
+            else:
+                j = js[0]
+                r = rs[0]                
+                for idx in range(1,len(js)):
+                    d.move_to_end(i,idx)                    
+                    
+            if i == (N - 1): # reach the top
+                if not is_interference_xyz(ms_info, d, i, j, collision_dist_xy, collision_dist_z):
+                    S.append([i,j])
+                    d.remove_item(i,j)
+                r,i,j = d.get_end()                
+        else:
+            r_next, i_next, j_next = d.get_end() 
+            if [i,j] == [i_next, j_next]:  #the extruder goes back and the region is not be appended
+                S.append([i,j]) 
+                d.remove_item(i,j)
+                r_next, i_next, j_next = d.get_end()
+            else:
+                if i <= i_next: # The new region is not lower than current, 
+                    S.append([i,j]) # so the nozzle doesn't need to go down. 
+                    d.remove_item(i,j)
+            r = r_next
+            i = i_next
+            j = j_next 
+            
+    # generate spiral and connect them
+    # todo: connect path on the nearest point
+    d = RDqueue(R)    
+    path = []
+    Z = 0.0   
+  
+    z_list[-1] = z_list[-2] + m.layer_thickness
+    for i in range(0,len(S)):
+        iLayer = S[i][0]
+        r=d.get_item(iLayer, S[i][1])           
+        cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
+        #transformation to 3d vector
+        Z = z_list[iLayer]
+        z = [Z] * len(cs)
+        z = np.array(z).reshape([len(z),1])   
+        
+        if i== 0:
+            path = np.hstack([cs,z])            
+        else:
+            cs = np.hstack([cs,z])
+            path = np.vstack([path,cs])
+        
+        #if i== 0:
+            #path = np.hstack([cs,z])            
+        #else:
+            #if iLayer == 1:
+                #z += ms_info.first_layer_thickness
+            #elif iLayer > 1:
+                #z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
+            #cs = np.hstack([cs,z])
+            #path = np.vstack([path,cs])
+            
+        
+    
+    return path
     
 if __name__ == "__main__":
     # for visualization 
@@ -372,6 +509,9 @@ if __name__ == "__main__":
     ms = mesh.Mesh.from_file(file_path)
     m = modelInfo.ModelInfo(ms)
     m.path = file_path
+    m.set_layers(N)
     
-    path = gen_continuous_path(m, "r:/images", N, 3)
+    #path = gen_continuous_path(m, "r:/images", N, 3)
+    path = gen_continuous_path_with_constraint(m, "r:/images", 30, 30, -8)
+    
     print(path.shape)
