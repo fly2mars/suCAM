@@ -461,8 +461,8 @@ class VView(QMainWindow):
         else:
             os.mkdir("images")
         self.out_path = os.path.join(curdir, "images")        
-        #self.path_verts = mkspiral.gen_continuous_path(self.mesh_info, self.out_path, 2000, self.conf.get("infill_offset"))
-        self.path_verts = mkspiral.gen_continuous_path_with_constraint(self.mesh_info, self.out_path, 2000, 60,self.conf.get("infill_offset"))  
+        self.path_verts = mkspiral.gen_continuous_path(self.mesh_info, self.out_path, 20000, self.conf.get("infill_offset"))
+        #self.path_verts = mkspiral.gen_continuous_path_with_constraint(self.mesh_info, self.out_path, 2000, 60,self.conf.get("infill_offset"))  
         plt = gl.GLLinePlotItem(pos=self.path_verts, color=pg.glColor('r'), width= 1, antialias=True)
         
         self.view_slice.addItem(plt)      

@@ -388,7 +388,7 @@ def gen_continuous_path(ms_info, tmp_slice_path, collision_dist = 3, offset = -4
 # @collision_dist_z:  z size of nozzle, default is 30(the unit is mm)
 # @offset: internal offset for generating iso-contour
 ###########################
-def gen_continuous_path_with_constraint(ms_info, tmp_slice_path, collision_dist_xy= 30, collision_dist_z= 30, offset = -4):
+def gen_continuous_path_with_constraint(ms_info, tmp_slice_path, collision_dist_xy= 30, collision_dist_z= 3000, offset = -4):
     m = ms_info
     N = m.get_layers()
     z_list = m.get_z_list()
