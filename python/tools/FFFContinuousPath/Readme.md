@@ -3,8 +3,8 @@
 We provide two command-line tools for generation of continuous path and converting the continuous path into g-code.
 
 <p float="left">
-<img src="../../../doc/smallcpath-1.png" alt="small" style="zoom:20%;" />
-<img src="../../../doc/femalecpath-1.png" alt="femalecpath-1" style="zoom:30%;" />
+<img src="../../../doc/smallcpath-1.png" alt="small"  width="300" />
+<img src="../../../doc/femalecpath-1.png" alt="femalecpath-1"  width="300"  />
 </p>
 
 ### Usage:
@@ -24,13 +24,6 @@ Example:
 python genCP --in small.stl  --first_layer_thickness 0.2 --layer_thickness 0.3   --infill_offset 0.4
 ```
 
-python genGCode.py [[--in] <path file>] [[--out] <gcode file> ] [[--header] <header G-code file> [[--tail] <tail g-code file> ]
-
-
-Example: 
-```
-python genGCode.py -in small.stl 
-```
 
 ### Bibtex
 Please cite our [paper](../../../doc/ContiPath.pdf) (unmodified version) if you use this code in your research.
