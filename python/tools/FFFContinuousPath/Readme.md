@@ -16,7 +16,7 @@ python genCP.py [[--in] <stl file>] [[--out] <path file>] [[--first_layer_thickn
 * `--first_layer_thickness`: The thickness of the first sliced layer.
 * `--layer_thickness`: The thickness of each layers
 * `--infill_offset`: The distance between each two infilled contours.  
-* `--collision_thx`: The collision threshold in x-y plane, e.g. the default is 500mm.
+* `--collision_thx`: The collision threshold in x-y plane, e.g. the default is 50mm.
 
 Example:
 
