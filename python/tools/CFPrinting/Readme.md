@@ -30,13 +30,5 @@ python genCP --in small.stl  --first_layer_thickness 0.2 --layer_thickness 0.3  
 ### Bibtex
 Please cite our [paper](#) (comming soon) if you use this code in your research.
 ```
-@article{SunYao-1311,
-   Author = {Yuan Yao, Meng Li, , Yunliang},
-   Title = {A continuous fiber-reinforced additive manufacturing processing based on PET fiber and PLA },
-   Journal = {Progress in Additive Manufacturing},
-   Volume = {},
-   Number = {},
-   Pages = {},
-   Year = {2020} 
-}
+
 ```

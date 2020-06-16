@@ -44,7 +44,7 @@ class ContinuousPathPlanning(object):
         '''
         collisiion_thx: collision threshold in x-y plane, e.g. the default is 500mm
         '''
-        self.mesh_info.first_layer_thicknes = first_layer_thickness
+        self.mesh_info.first_layer_thickness = first_layer_thickness
         self.mesh_info.layer_thickness = layer_thickness    
         ## Prepare a tmp image path
         curdir = os.getcwd()
