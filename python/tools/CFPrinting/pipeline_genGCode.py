@@ -3,6 +3,8 @@ import os
 import argparse
 import numpy as np
 
+import json
+
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ppl'))    
            
@@ -74,16 +76,13 @@ class Pipeline_ContinuousPathPlanning(object):
 
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  
+    
     parser = argparse.ArgumentParser(description="A multi agenter toplogy optimizer.")
     parser.add_argument('--h', dest='help', action='store_true')
     parser.add_argument('--in', dest='input_file', required=False)
     parser.add_argument('--out', dest='output_file', required=False)
-    parser.add_argument('--first_layer_thickness', dest='first_layer_thickness', required=False)
-    parser.add_argument('--layer_thickness', dest='layer_thickness', required=False)
-    parser.add_argument('--infill_offset', dest='infill_offset', required=False)
-    parser.add_argument('--collision_thxy', dest='collision_distxy', required=False)
-    parser.add_argument('--collision_thz', dest='collision_distz', required=False)
+    parser.add_argument('--config', dest='config_file', required=False)    
 
     args = parser.parse_args()
     if args.help:
@@ -98,11 +97,18 @@ if __name__ == '__main__':
         help_info()
 
     out_file = str(args.output_file) if args.output_file else os.path.splitext(input_file)[0] + '.path'
-    first_layer_thickness = float(args.first_layer_thickness) if args.first_layer_thickness else 0.2
-    layer_thickness = float(args.layer_thickness) if args.layer_thickness else 0.3
-    infill_offset = float(args.infill_offset) if args.infill_offset else 0.4      # Should be converted to pixels
-    collision_distxy = float(args.collision_distxy) if args.collision_distxy else 50
-    collision_distz = float(args.collision_distz) if args.collision_distz else 50
+    
+    ## load config    
+    config_file = str(args.config_file) if args.output_file else 'config.json'
+    f = open(config_file, "r")    
+    str = f.read()
+    fab_config = json.loads(str)
+    
+    first_layer_thickness = fab_config['first_layer_thickness']
+    layer_thickness = fab_config['layer_thickness']
+    infill_offset = fab_config['infill_offset']
+    collision_distxy = fab_config['collision_distxy']
+    collision_distz = fab_config['collision_distz']
 
     cp = Pipeline_ContinuousPathPlanning()
     cp.load(input_file)

@@ -23,12 +23,20 @@ python genCP.py [[--in] <stl file>] [[--out] <path file>] [[--first_layer_thickn
 Example:
 
 ```
-python genCP --in small.stl  --first_layer_thickness 0.2 --layer_thickness 0.3   --infill_offset 0.4  --collision_thxy 30 --collision_thz - 20 
+python genCP.py --in models/part1.stl  --first_layer_thickness 0.2 --layer_thickness 0.3   --infill_offset 0.4  --collision_thxy 30 --collision_thz - 20 
 ```
+
+Read configuration from config.json
+```
+python pipeline_genGCode  --in models/part1.stl  --config config.json
+```
+
+### Slicer
 
 
 ### Bibtex
 Please cite our [paper](#) (comming soon) if you use this code in your research.
 ```
+
 
 ```
