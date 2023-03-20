@@ -28,7 +28,7 @@ python genCP.py --in models/part1.stl  --first_layer_thickness 0.2 --layer_thick
 
 Read configuration from config.json
 ```
-python pipeline_genGCode  --in models/part1.stl  --config config.json
+python pipeline_genGCode  --in models/bunny.stl  --config config.json
 ```
 
 ### Slicer

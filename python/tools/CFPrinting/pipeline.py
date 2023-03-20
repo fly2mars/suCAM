@@ -2,26 +2,30 @@ import sys
 import os
 import argparse
 import numpy as np
-
 import json
+
+import logging
+logging.basicConfig(format='[line:%(lineno)d] - %(levelname)s: %(message)s',
+                    level=logging.DEBUG)
 
 if __name__ == "__main__":
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ppl'))    
+    from utils import *
+    import MinettoSlicer.stlmesh as stlmesh
+    import MinettoSlicer.slicer as slicer    
+    # import stl2pngfunc
+    # import modelInfo
+    # import pathengine
+    # import mkspiral 
            
-import stl2pngfunc
-import modelInfo
-import pathengine
-import mkspiral
+
 
 tmp_dir = 'r:/images'   # temp dir for saving sliced images
 
 def help_info():
-    info = 'python genCP.py [[--in] <stl file>] [[--out] <path file>]\n'  \
-           '                [[--first_layer_thickness] <float number>]\n' \
-           '                [[--layer_thickness] <float number>]\n'\
-           '                [[--infill_offset] <float number>]\n'\
-           '                [[--collision_thxy] <float number>]\n'\
-           '                [[--collision_thz] <float number>]\n'\
+    info = 'python pipeline.py [[--in] <stl file>] [[--out] <path file>]\n'  \
+           '                [[--config] <config file name>]\n'\
+           ' eg: python pipeline_genGCode  --in models/part1.stl  --config config.json'
            
     print(info)
     
@@ -31,18 +35,36 @@ def clear_dir(tmp_dir):
         for f in filelist:
             os.remove(os.path.join(tmp_dir, f))    
 
-class Pipeline_ContinuousPathPlanning(object):
+class Pipeline(object):
+    '''
+    Construct a [STL reading, slicing, path plane, gcode generation] pipeline.
+    '''
     def __init__(self):
-        self.mesh_info = modelInfo.ModelInfo()
+        #self.mesh_info = modelInfo.ModelInfo()
+        self.mesh = None
+        pass
         
     def load(self, filename):
         try:
-            self.mesh_info.load(filename)    
+            self.mesh = stlmesh.stlmesh(filename)
+            self.mesh_min = self.mesh.min_coordinates()[2]
+            self.mesh_max = self.mesh.max_coordinates()[2]
         except Exception as e:
             print(e)
             exit()
             
-    def slice(self, model):
+    def slice(self, param):
+        P = None
+        srt   = False
+        self.mesh_slicer = slicer.slicer(self.mesh.triangles,P,param['layer_thickness'],srt)
+        self.mesh_slicer.incremental_slicing()           
+    
+    @unimplemented
+    def path_plan(self, param):
+        pass
+    
+    @unimplemented
+    def gen_gcode(self, param):
         pass
         
     
@@ -50,7 +72,7 @@ class Pipeline_ContinuousPathPlanning(object):
     def gen_path(self, first_layer_thickness, layer_thickness, infill_offset, collision_thxy = 50, collision_thz = 50, tmp_dir = tmp_dir):
         '''
         collisiion_thx: collision threshold in x-y plane, e.g. the default is 500mm
-        '''
+       
         self.mesh_info.first_layer_thickness = first_layer_thickness
         self.mesh_info.layer_thickness = layer_thickness    
         
@@ -67,6 +89,8 @@ class Pipeline_ContinuousPathPlanning(object):
         collision_thz = collision_thz / self.mesh_info.pixel_size  
         
         self.path_verts = mkspiral.gen_continuous_path_with_constraint(self.mesh_info, tmp_dir, collision_thxy, collision_thz, infill_offset)
+        '''
+        pass
 
     
     def export(self, output_filename):
@@ -110,11 +134,14 @@ if __name__ == '__main__':
     collision_distxy = fab_config['collision_distxy']
     collision_distz = fab_config['collision_distz']
 
-    cp = Pipeline_ContinuousPathPlanning()
+    cp = Pipeline()
     cp.load(input_file)
-    cp.gen_path(first_layer_thickness, layer_thickness, infill_offset, collision_distxy, collision_distz)
+    #cp.gen_path(first_layer_thickness, layer_thickness, infill_offset, collision_distxy, collision_distz)
     
-    cp.export(out_file)
+    #cp.export(out_file)
+    cp.slice(fab_config)
+    cp.path_plan(fab_config)
+    cp.gen_gcode(fab_config)
     
 
 
