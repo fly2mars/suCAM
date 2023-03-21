@@ -1,0 +1,5 @@
+python/__pycache__/*
+python/images/*
+python/outputs/*
+python/dist/*
+python/build/*

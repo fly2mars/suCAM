@@ -357,6 +357,49 @@ class pathEngine:
                 self.recusive_add_node(new_node, Next)    
         return   
 
+    def convert_plane_to_PyPolyTree(self, plane):
+        """
+        Build a poly tree by a deep first search(DSF):
+         - Construct a relation matrix from plane
+         - Build a root node and find first level node in plane, then add these node to root
+         - Recursively add node 
+        """      
+        root = pyclipper.PyPolyNode()
+        N = len(plane)
+        if(N==0):
+            return root
+            
+        # construct matrix R
+        R = np.zeros([N,N])        
+        for i in range(N):
+            for j in range(N):
+                if i != j:
+                    if plane[j].is_inside(plane[i].vertices[0]):
+                        R[i,j] = 1  # is child
+                        
+        ## analyzing matrix R
+        acc_by_row = R.sum(axis= 1)              
+        
+        S = {}
+        n_level = np.max(acc_by_row)+1
+        for i in range(n_level):
+            S[i] = set()
+                       
+        for i in range(len(acc_by_row)):            
+            S[acc_by_row[i]].add(i)        
+        
+        ## add first level to root
+        for i in S[0]:
+            node = pyclipper.PyPolyNode()
+            node.Parent = root        
+            node.Contour = plane[i].verticesreshape((-1,2))  # (x rows, 1, 2) -> (x rows, 2)                   
+            node.IsOpen = False
+            node.IsHole = False               
+            root.Childs.append(node)            
+            
+        return root 
+        
+                
     def convert_hiearchy_to_PyPolyTree(self):
         """
         Build a root node and find first level node in hiearchy, then add these node to root. 

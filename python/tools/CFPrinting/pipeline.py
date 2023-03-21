@@ -59,10 +59,9 @@ class Pipeline(object):
         self.mesh_slicer = slicer.slicer(self.mesh.triangles,P,param['layer_thickness'],srt)
         self.mesh_slicer.incremental_slicing()      
         # export contours to polygon graph
-    
-    @unimplemented
+        
     def path_plan(self, param):
-        pass
+        self.path_verts = mkspiral.gen_continuous_path_from_slices(self.mesh_slicer, collision_dist_xy= 30, collision_dist_z= 3000, offset = -4)
     
     @unimplemented
     def gen_gcode(self, param):
@@ -91,6 +90,7 @@ class Pipeline(object):
         
         self.path_verts = mkspiral.gen_continuous_path_with_constraint(self.mesh_info, tmp_dir, collision_thxy, collision_thz, infill_offset)
         '''
+        
         pass
 
     

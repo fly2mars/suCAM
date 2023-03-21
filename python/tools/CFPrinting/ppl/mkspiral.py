@@ -64,6 +64,26 @@ def get_region_boundary_from_img(img_path, pe, is_reverse=False):
         cs_region_list.append(cs_region)
     return cs_region_list
 
+def get_region_boundary_from_slice(pe, plane):
+    '''    
+    @pe is a reference of patheEngine object
+    @plane is a plane in planes
+    @return
+       a list, each element represents a group of boundaries of a connected region.
+    '''    
+    # todo
+    contour_tree = pe.convert_plane_to_PyPolyTree()
+    group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')
+    #closed region
+    cs_region_list = []
+    for cs_region in group_boundary.values():
+        #resample        
+        for i in range(len(cs_region)):            
+            cs_region[i] = pathengine.suPath2D.resample_curve_by_equal_dist(cs_region[i], 4)         
+        
+        cs_region_list.append(cs_region)
+    return cs_region_list
+
 def is_interference(d, i, j, thresh):
     '''
     @d is regions deque
@@ -329,6 +349,98 @@ def gen_continuous_path(ms_info, tmp_slice_path, collision_dist = 3, offset = -4
                     
             if i == (N - 1): # reach the top
                 if not is_interference(d, i, j, dist_th):
+                    S.append([i,j])
+                    d.remove_item(i,j)
+                r,i,j = d.get_end()                
+        else:
+            r_next, i_next, j_next = d.get_end() 
+            if [i,j] == [i_next, j_next]:  #the extruder goes back and the region is not be appended
+                S.append([i,j]) 
+                d.remove_item(i,j)
+                r_next, i_next, j_next = d.get_end()
+            else:
+                if i <= i_next: # The new region is not lower than current, 
+                    S.append([i,j]) # so the nozzle doesn't need to go down. 
+                    d.remove_item(i,j)
+            r = r_next
+            i = i_next
+            j = j_next 
+            
+    # generate spiral and connect them
+    # todo: connect path on the nearest point
+    d = RDqueue(R)    
+    path = []
+    Z = 0.0   
+  
+    z_list[-1] = z_list[-2] + m.layer_thickness
+    for i in range(0,len(S)):
+        iLayer = S[i][0]
+        r=d.get_item(iLayer, S[i][1])           
+        cs=spiral(pe, r, offset)   * ms_info.get_pixel_size()
+        #transformation to 3d vector
+        Z = z_list[iLayer]
+        z = [Z] * len(cs)
+        z = np.array(z).reshape([len(z),1])   
+        
+        if i== 0:
+            path = np.hstack([cs,z])            
+        else:
+            cs = np.hstack([cs,z])
+            path = np.vstack([path,cs])
+        
+        #if i== 0:
+            #path = np.hstack([cs,z])            
+        #else:
+            #if iLayer == 1:
+                #z += ms_info.first_layer_thickness
+            #elif iLayer > 1:
+                #z += ((iLayer-1) * ms_info.layer_thickness + ms_info.first_layer_thickness)
+            #cs = np.hstack([cs,z])
+            #path = np.vstack([path,cs])
+            
+        
+    
+    return path
+
+
+###########################
+
+###########################
+def gen_continuous_path_from_slices(slicer, collision_dist_xy= 30, collision_dist_z= 3000, offset = -4):
+    '''
+    Generate continuous path from slices contours
+    slicer: a Minetto slicer object    
+    '''
+   
+    #print sequence
+    R = [] #R = {r_ij}
+    S = [] #sequence with [[i,j]......]    
+    pe = pathengine.pathEngine()  
+    
+    for plane in slicer.planes:        
+        rs = get_region_boundary_from_img(img_file, pe, True)       
+        R.append(rs)     
+        
+    d = RDqueue(R)      #d = di = dj = deque() 
+    r,i,j = d.get_end()
+    while d.size() != 0:          
+        if (i < N - 1) and (not is_interference_xyz(ms_info, d, i, j, collision_dist_xy, collision_dist_z) ): 
+            S.append([i,j])
+            d.remove_item(i,j)            
+            i = i + 1     
+            rs, js = find_surpported_regions(d, r, i, -6)
+
+            if js == []:   
+                r, i, j = d.get_end() 
+                continue
+            else:
+                j = js[0]
+                r = rs[0]                
+                for idx in range(1,len(js)):
+                    d.move_to_end(i,idx)                    
+                    
+            if i == (N - 1): # reach the top
+                if not is_interference_xyz(ms_info, d, i, j, collision_dist_xy, collision_dist_z):
                     S.append([i,j])
                     d.remove_item(i,j)
                 r,i,j = d.get_end()                
