@@ -364,6 +364,11 @@ class pathEngine:
          - Build a root node and find first level node in plane, then add these node to root
          - Recursively add node 
         """      
+        def ConvertVertices2NumpyArray(vertices):
+            N = len(vertices)
+            verts_arr = np.zeros([N,2])  
+            for v in vertices:
+                v.coord[:2]
         root = pyclipper.PyPolyNode()
         N = len(plane)
         if(N==0):

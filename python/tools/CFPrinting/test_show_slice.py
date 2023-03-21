@@ -412,10 +412,17 @@ def init():
     mesh_slicer.incremental_slicing()
     
     # for debug
-    for i in range(len(mesh_slicer.planes)):
-        for polygon in mesh_slicer.planes[i]:
-            for v in polygon.vertices:
-                print(v.coord)
+    
+    for polygon in mesh_slicer.planes[0]:
+        print(len(polygon.vertices))
+        for v in polygon.vertices:
+            print(v.coord[:3])
+            
+    for polygon in mesh_slicer.planes[8]:
+        print(len(polygon.vertices))
+        for v in polygon.vertices:
+            print(v.coord[:3])    
+        
 
     # Create mesh data for GPU.
     data,num_vertices_mesh = mesh.OpenGLData(view_min, view_max)
