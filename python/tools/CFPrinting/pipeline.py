@@ -57,7 +57,8 @@ class Pipeline(object):
         P = None
         srt   = False
         self.mesh_slicer = slicer.slicer(self.mesh.triangles,P,param['layer_thickness'],srt)
-        self.mesh_slicer.incremental_slicing()           
+        self.mesh_slicer.incremental_slicing()      
+        # export contours to polygon graph
     
     @unimplemented
     def path_plan(self, param):
