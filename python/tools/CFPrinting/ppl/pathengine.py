@@ -368,7 +368,9 @@ class pathEngine:
             N = len(vertices)
             verts_arr = np.zeros([N,2])  
             for v in vertices:
-                v.coord[:2]
+                verts_arr = v.coord[:2]
+            return verts_arr
+                
         root = pyclipper.PyPolyNode()
         N = len(plane)
         if(N==0):
@@ -397,11 +399,12 @@ class pathEngine:
         for i in S[0]:
             node = pyclipper.PyPolyNode()
             node.Parent = root        
-            node.Contour = plane[i].verticesreshape((-1,2))  # (x rows, 1, 2) -> (x rows, 2)                   
+            node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)  #  -> (x rows, 2)                   
             node.IsOpen = False
-            node.IsHole = False               
+            node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1               
             root.Childs.append(node)            
             
+        # todo : add other levels
         return root 
         
                 
