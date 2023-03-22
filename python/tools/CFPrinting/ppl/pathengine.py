@@ -369,7 +369,7 @@ class pathEngine:
             verts_arr = np.zeros([N,2])  
             for v in vertices:
                 verts_arr = v.coord[:2]
-            return verts_arr
+            return verts_arr   
                 
         root = pyclipper.PyPolyNode()
         N = len(plane)
@@ -393,18 +393,37 @@ class pathEngine:
             S[i] = set()
                        
         for i in range(len(acc_by_row)):            
-            S[acc_by_row[i]].add(i)        
+            S[acc_by_row[i]].add(i)    
+            
+            
+        def DSF(node, depth, idx):
+            cur_depth = depth + 1
+            if cur_depth not in S:
+                return
+            
+            for i in S[cur_depth]:    # each contour in level depth+1
+                if R[i, idx] == 1:  # i is idx's child
+                    child_node = pyclipper.PyPolyNode()
+                    child_node.Parent = node
+                    child_node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)
+                    child_node.IsOpen = Flase
+                    child_node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
+                    DSF(child_node, cur_depth, i)
+                    node.Childs.append(child_node)
+                    
+                    
         
-        ## add first level to root
+        ## recursively add node
         for i in S[0]:
+            ## for each node in level 0, added itself to root
             node = pyclipper.PyPolyNode()
             node.Parent = root        
             node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)  #  -> (x rows, 2)                   
             node.IsOpen = False
-            node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1               
-            root.Childs.append(node)            
+            node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
+            DSF(node, 0, i)
+            root.Childs.append(node)   
             
-        # todo : add other levels
         return root 
         
                 
