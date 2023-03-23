@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# run: 
+#     python test_show_slice.py models/short.stl -d 0.8
 
 import sys
 import os

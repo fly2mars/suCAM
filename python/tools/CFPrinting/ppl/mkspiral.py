@@ -66,13 +66,13 @@ def get_region_boundary_from_img(img_path, pe, is_reverse=False):
 
 def get_region_boundary_from_slice(pe, plane):
     '''    
+    get region boundary from MinettoSlicer
     @pe is a reference of patheEngine object
     @plane is a plane in planes
     @return
        a list, each element represents a group of boundaries of a connected region.
-    '''    
-    # todo
-    contour_tree = pe.convert_plane_to_PyPolyTree()
+    '''     
+    contour_tree = pe.convert_plane_to_PyPolyTree(plane)
     group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')
     #closed region
     cs_region_list = []
@@ -490,8 +490,6 @@ def gen_continuous_path_from_slices(slicer, collision_dist_xy= 30, collision_dis
             #cs = np.hstack([cs,z])
             #path = np.vstack([path,cs])
             
-        
-    
     return path
 
 ###########################

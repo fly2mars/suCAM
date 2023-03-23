@@ -15,19 +15,29 @@ import unittest
 logging.basicConfig(format='[line:%(lineno)d] - %(levelname)s: %(message)s',
                     level=logging.DEBUG)
 
+# include ppl
 if __name__ == '__main__':    
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'ppl'))    
     from utils import *
     import MinettoSlicer.stlmesh as stlmesh
     import MinettoSlicer.slicer as slicer   
     import MinettoSlicer.glutils as ut    
-  
-  
+    import modelInfo
+    import pathengine
+    import mkspiral    
 
-class TestClass(unittest.TestCase):  
-    
+
+class Pipeline(object):
+    '''
+    Construct a [STL reading, slicing, path plane, gcode generation] pipeline.
+    '''
+    def __init__(self):
+        #self.mesh_info = modelInfo.ModelInfo()
+        self.mesh   = None
+        self.param  = None
+        self.slicer = None        
+        
     def load(self, filename):
-        logging.info("load-----")
         try:
             self.mesh = stlmesh.stlmesh(filename)
             self.mesh_min = self.mesh.min_coordinates()[2]
@@ -36,47 +46,77 @@ class TestClass(unittest.TestCase):
             print(e)
             exit()
             
-        
-    def load_config(self, filename):
-        logging.info("load_config-----")
-        f = open(filename, "r")    
+    def load_config(self, config_filename=None):
+        config_file = str(config_filename) if config_filename is not None else 'config.json'
+        f = open(config_file, "r")    
         str = f.read()
-        self.param = json.loads(str)  
+        self.param = json.loads(str)
         f.close()
-
-    def slice(self, param):
-        logging.info("slice-----")
-        P = None
-        srt   = False       
-                
-        self.mesh_slicer = slicer.slicer(self.mesh.triangles,P,param['layer_thickness'],srt)
-        self.mesh_slicer.incremental_slicing()       
-    
-    @unittest.skip("just skip")     
-    def test1(self): 
-        logging.info("test1-----")
-        # Load mesh.
-        mesh = stlmesh.stlmesh('models/pendant.stl')
-        mesh_min = mesh.min_coordinates()[2]
-        mesh_max = mesh.max_coordinates()[2]
-        
-        # Compute slices.
-        P = None
+            
+    def slice(self):
+        P     = None
         srt   = False
-        delta = 1
-        mesh_slicer = slicer.slicer(mesh.triangles,P,delta,srt)
-        mesh_slicer.incremental_slicing()
+        delta = self.param['layer_thickness']
+        
+        self.slicer = slicer.slicer(self.mesh.triangles, P, delta, srt)
+        self.slicer.incremental_slicing()      
+        # export contours to polygon graph
+        
+    def get_plane(self, idx = 0):
+        """
+        @return get idx_th plane
+        """
+        return self.slicer.planes[idx]
+    
+    def path_plan(self, param):
+        self.path_verts = mkspiral.gen_continuous_path_from_slices(self.slicer, collision_dist_xy= 30, collision_dist_z= 3000, offset = -4)
+    
+    @unimplemented
+    def gen_gcode(self, param):
+        pass
+  
+    
+    def export(self, output_filename):
+        np.savetxt(output_filename, self.path_verts, fmt='%.4f')   
+        print('Path file {} is generated'.format(output_filename))
+        
+ 
+  
+
+class TestClass(unittest.TestCase):  
+    def setUp(self):
+        self.config_file = 'config.json'
+        self.mesh_file   = 'models/short.stl'        
+            
+    
+    # @unittest.skip("just skip")     
+    def test1(self): 
+        offset = -0.4
+        pl = Pipeline()
+        pl.load(self.mesh_file)
+        pl.load_config()
+        pl.slice()
+        pe = pathengine.pathEngine()
+        plane = pl.get_plane(0)
+        # group_contour = mkspiral.get_region_boundary_from_slice(pe, plane)
+        contour_tree = pe.convert_plane_to_PyPolyTree(plane)
+        group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')        
+        
+        #for cs in group_boundary.values():
+            #pe.iso_contours_of_a_region.clear()
+            #iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset)       
+            
+        
+        for boundary in group_boundary.values():
+            spiral = mkspiral.spiral(pe, boundary, offset)
+        
+        
+       
        
             
     def test2(self):
-        logging.info("test2-----")
-        self.load('models/pendant.stl')
-        self.load_config('config.json')  
-        logging.info(type(self.param['layer_thickness']))
-        logging.info(self.param['layer_thickness'])        
-    def test3(self):
-        print(self.param)
-        self.slice(self.param)   
+        logging.info("test2-----")           
+
         
  
 if __name__ == '__main__':

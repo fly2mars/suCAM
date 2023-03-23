@@ -1,4 +1,4 @@
-python/__pycache__/*
+__pycache__/*
 python/images/*
 python/outputs/*
 python/dist/*

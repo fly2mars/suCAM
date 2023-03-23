@@ -367,8 +367,8 @@ class pathEngine:
         def ConvertVertices2NumpyArray(vertices):
             N = len(vertices)
             verts_arr = np.zeros([N,2])  
-            for v in vertices:
-                verts_arr = v.coord[:2]
+            for i, v in enumerate(vertices):
+                verts_arr[i] = v.coord[:2]
             return verts_arr   
                 
         root = pyclipper.PyPolyNode()
@@ -388,7 +388,7 @@ class pathEngine:
         acc_by_row = R.sum(axis= 1)              
         
         S = {}
-        n_level = np.max(acc_by_row)+1
+        n_level = int(np.max(acc_by_row))+1
         for i in range(n_level):
             S[i] = set()
                        
@@ -420,7 +420,7 @@ class pathEngine:
             node.Parent = root        
             node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)  #  -> (x rows, 2)                   
             node.IsOpen = False
-            node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
+            node.IsHole = False if plane[i].orientation() == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
             DSF(node, 0, i)
             root.Childs.append(node)   
             
