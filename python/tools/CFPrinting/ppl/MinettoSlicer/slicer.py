@@ -194,16 +194,16 @@ class slicer:
             H = {}
             for seg in self.segments[i]:
                 if np.linalg.norm(seg[0].coord-seg[1].coord) > 0.0001:
-                    if seg[0].coord.tostring() in H:
-                        H[seg[0].coord.tostring()].append(seg[1])
+                    if seg[0].coord.tobytes() in H:
+                        H[seg[0].coord.tobytes()].append(seg[1])
                     else:
-                        H[seg[0].coord.tostring()] = [seg[0]] # save for future reference as current vertex
-                        H[seg[0].coord.tostring()].append(seg[1])
-                    if seg[1].coord.tostring() in H:
-                        H[seg[1].coord.tostring()].append(seg[0])
+                        H[seg[0].coord.tobytes()] = [seg[0]] # save for future reference as current vertex
+                        H[seg[0].coord.tobytes()].append(seg[1])
+                    if seg[1].coord.tobytes() in H:
+                        H[seg[1].coord.tobytes()].append(seg[0])
                     else:
-                        H[seg[1].coord.tostring()] = [seg[1]] # save for future reference as current vertex
-                        H[seg[1].coord.tostring()].append(seg[0])
+                        H[seg[1].coord.tobytes()] = [seg[1]] # save for future reference as current vertex
+                        H[seg[1].coord.tobytes()].append(seg[0])
 
             while len(H) > 0:
                 # Init polygon.
@@ -214,9 +214,9 @@ class slicer:
                 u_vertex = H[u_key][0]
 
                 # Set final and next (v) keys and vertices.
-                final_key    = H[u_key][2].coord.tostring() 
+                final_key    = H[u_key][2].coord.tobytes() 
                 final_vertex = H[u_key][2] 
-                v_key        = H[u_key][1].coord.tostring()
+                v_key        = H[u_key][1].coord.tobytes()
                 v_vertex     = H[u_key][1] 
 
                 # Not needed anymore.
@@ -234,11 +234,11 @@ class slicer:
                     u_key    = v_key
                     u_vertex = H[u_key][0]
 
-                    v_key   = H[u_key][1].coord.tostring()
+                    v_key   = H[u_key][1].coord.tobytes()
                     if v_key != last_key:
                         v_vertex = H[u_key][1] 
                     else:
-                        v_key    = H[u_key][2].coord.tostring()
+                        v_key    = H[u_key][2].coord.tobytes()
                         v_vertex = H[u_key][2] 
                         
                     H.pop(u_key)

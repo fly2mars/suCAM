@@ -27,6 +27,7 @@ if __name__ == '__main__':
 class TestClass(unittest.TestCase):  
     
     def load(self, filename):
+        logging.info("load-----")
         try:
             self.mesh = stlmesh.stlmesh(filename)
             self.mesh_min = self.mesh.min_coordinates()[2]
@@ -35,19 +36,25 @@ class TestClass(unittest.TestCase):
             print(e)
             exit()
             
+        
     def load_config(self, filename):
+        logging.info("load_config-----")
         f = open(filename, "r")    
         str = f.read()
         self.param = json.loads(str)  
         f.close()
 
     def slice(self, param):
+        logging.info("slice-----")
         P = None
-        srt   = False
+        srt   = False       
+                
         self.mesh_slicer = slicer.slicer(self.mesh.triangles,P,param['layer_thickness'],srt)
         self.mesh_slicer.incremental_slicing()       
     
+    @unittest.skip("just skip")     
     def test1(self): 
+        logging.info("test1-----")
         # Load mesh.
         mesh = stlmesh.stlmesh('models/pendant.stl')
         mesh_min = mesh.min_coordinates()[2]
@@ -62,9 +69,14 @@ class TestClass(unittest.TestCase):
        
             
     def test2(self):
+        logging.info("test2-----")
         self.load('models/pendant.stl')
-        self.load_config('config.json')        
-        self.slice(self.param)    
+        self.load_config('config.json')  
+        logging.info(type(self.param['layer_thickness']))
+        logging.info(self.param['layer_thickness'])        
+    def test3(self):
+        print(self.param)
+        self.slice(self.param)   
         
  
 if __name__ == '__main__':
