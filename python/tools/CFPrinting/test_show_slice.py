@@ -418,12 +418,7 @@ def init():
         for v in polygon.vertices:
             print(v.coord[:3])
             
-    for polygon in mesh_slicer.planes[8]:
-        print(len(polygon.vertices))
-        for v in polygon.vertices:
-            print(v.coord[:3])    
-        
-
+  
     # Create mesh data for GPU.
     data,num_vertices_mesh = mesh.OpenGLData(view_min, view_max)
 
