@@ -12,6 +12,8 @@ import json
 import logging
 import unittest
 
+import VtkAdaptor  # for visulization
+
 logging.basicConfig(format='[line:%(lineno)d] - %(levelname)s: %(message)s',
                     level=logging.DEBUG)
 
@@ -26,7 +28,42 @@ if __name__ == '__main__':
     import pathengine
     import mkspiral    
 
-
+class Polyline(object):
+    """
+    Encapsulate numpy.array([n,2]) to vtk polyline for visulization
+    --------------------------------------------
+     def drawPolyline(self, polyline):
+        src = vtk.vtkLineSource()
+        points = vtk.vtkPoints()
+        for i in range(polyline.count()):
+            pt = polyline.points[i]
+            points.InsertNextPoint((pt.x, pt.y, pt.z))
+        src.SetPoints(points)
+        return self.drawPdSrc(src)    
+    -------------------------------------------
+    """
+    def __init__(self, path_arr):
+        self.data = path_arr
+        self.points = []
+        for i in range(path_arr.shape[0]):
+            p = Polyline.Point3D()
+            p.x = path_arr[i,0]
+            p.y = path_arr[i,1]
+            p.z = 0
+            self.points.append(p)
+        
+    def count(self):
+        return self.data.shape[0]
+    
+    # create a 1st Inner class
+    class Point3D:
+        def __init__(self):
+            self.x = 0.0
+            self.y = 0.0
+            self.z = 0.0
+ 
+        
+    
 class Pipeline(object):
     '''
     Construct a [STL reading, slicing, path plane, gcode generation] pipeline.
@@ -80,7 +117,13 @@ class Pipeline(object):
         np.savetxt(output_filename, self.path_verts, fmt='%.4f')   
         print('Path file {} is generated'.format(output_filename))
         
- 
+    def show(self, path):
+        va = VtkAdaptor.VtkAdaptor()        
+        pl = Polyline(path)
+        va.drawPolyline(pl).GetProperty().SetColor(0, 1, 0)
+        va.display()        
+        
+        
   
 
 class TestClass(unittest.TestCase):  
@@ -91,7 +134,7 @@ class TestClass(unittest.TestCase):
     
     # @unittest.skip("just skip")     
     def test1(self): 
-        offset = -0.4
+        offset = -1
         pl = Pipeline()
         pl.load(self.mesh_file)
         pl.load_config()
@@ -106,12 +149,12 @@ class TestClass(unittest.TestCase):
             #pe.iso_contours_of_a_region.clear()
             #iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset)       
             
-        
+        spiral = []
         for boundary in group_boundary.values():
             spiral = mkspiral.spiral(pe, boundary, offset)
+            
+        pl.show(spiral)  
         
-        
-       
        
             
     def test2(self):
