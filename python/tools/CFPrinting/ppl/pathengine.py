@@ -406,7 +406,7 @@ class pathEngine:
                     child_node = pyclipper.PyPolyNode()
                     child_node.Parent = node
                     child_node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)
-                    child_node.IsOpen = Flase
+                    child_node.IsOpen = False
                     child_node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
                     DSF(child_node, cur_depth, i)
                     node.Childs.append(child_node)
@@ -572,12 +572,24 @@ class pathEngine:
         self.offset = offset
         iso_contours_of_a_region = []
         contours = input_contours
+        
+        # multiply 10 for hold precision, divide by 10 before return
+        for i, c in enumerate(contours):
+            contours[i] = c * 10
+        offset = abs(offset) * (-10)
+            
         iso_contours_of_a_region.append(input_contours)
         while(len(contours) != 0):
             pco = pyclipper.PyclipperOffset()
             pco.AddPaths(contours, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-            contours = pco.Execute(offset)           
+            contours = pco.Execute(offset)   
             iso_contours_of_a_region.append( contours)
+            
+        for i in range(len(iso_contours_of_a_region)):
+            for j in range(len(iso_contours_of_a_region[i])):                
+                iso_contours_of_a_region[i][j] = np.array(iso_contours_of_a_region[i][j])/10
+               
+                      
         return iso_contours_of_a_region
 
     def find_nearest_point_idx(self, point, contour):

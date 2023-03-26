@@ -11,6 +11,7 @@ import json
 
 import logging
 import unittest
+import random
 
 import VtkAdaptor  # for visulization
 
@@ -45,6 +46,8 @@ class Polyline(object):
     def __init__(self, path_arr):
         self.data = path_arr
         self.points = []
+        if(type(path_arr) == list):
+            path_arr = np.array(path_arr)
         for i in range(path_arr.shape[0]):
             p = Polyline.Point3D()
             p.x = path_arr[i,0]
@@ -53,7 +56,7 @@ class Polyline(object):
             self.points.append(p)
         
     def count(self):
-        return self.data.shape[0]
+        return len(self.data)#.shape[0]
     
     # create a 1st Inner class
     class Point3D:
@@ -72,7 +75,8 @@ class Pipeline(object):
         #self.mesh_info = modelInfo.ModelInfo()
         self.mesh   = None
         self.param  = None
-        self.slicer = None        
+        self.slicer = None    
+        self.va = VtkAdaptor.VtkAdaptor()   
         
     def load(self, filename):
         try:
@@ -117,48 +121,134 @@ class Pipeline(object):
         np.savetxt(output_filename, self.path_verts, fmt='%.4f')   
         print('Path file {} is generated'.format(output_filename))
         
-    def show(self, path):
-        va = VtkAdaptor.VtkAdaptor()        
+    def add_polyline_to_scene(self, path, color=(1, 0, 0)):
         pl = Polyline(path)
-        va.drawPolyline(pl).GetProperty().SetColor(0, 1, 0)
-        va.display()        
-        
+        self.va.drawPolyline(pl).GetProperty().SetColor(color)
+            
+           
+    def show(self):
+        self.va.display()
         
   
 
 class TestClass(unittest.TestCase):  
     def setUp(self):
         self.config_file = 'config.json'
-        self.mesh_file   = 'models/short.stl'        
+        self.mesh_file   = 'models/part1.stl'        
             
     
-    # @unittest.skip("just skip")     
-    def test1(self): 
-        offset = -1
+   #@unittest.skip("just skip")     
+    def test_fill_isocontours_in_onelayer(self): 
+        """
+        Filling iso contours with contours[i][j], where i is inner order, j is contour index. 
+        """
+        logging.info("test1: test_fill_isocontours_in_onelayer-----")
+        offset = 0.5
+        pl = Pipeline()
+        pl.load(self.mesh_file)
+        pl.load_config()       # load slice config file
+        pl.slice()
+        
+        
+        pe = pathengine.pathEngine()
+        plane = pl.get_plane(0)  # get layer 0
+        
+        contour_tree = pe.convert_plane_to_PyPolyTree(plane)
+        #pl.show(contour_tree.Childs[0].Contour)
+        group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')        
+        
+        spiral = []
+        for cs in group_boundary.values():       
+            #print(np.int16(cs))
+            # add outter contour
+            for c in cs:
+                pl.add_polyline_to_scene(c, (1,0,1))
+                
+            pe.iso_contours_of_a_region.clear()
+            iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset) 
+            
+            
+            for i in range(len(iso_contours)):
+                for j in range(len(iso_contours[i])):
+                    pl.add_polyline_to_scene(iso_contours[i][j])            
+                
+        pl.show()
+       
+            
+    @unittest.skip("just skip")     
+    def test_fill_continuousFS_in_onelayer(self): 
+        logging.info("test2: test_fill_continuousFS_in_onelayer-----")  
+        """
+        Filling continuous Fermat's Spiral with contours[i][j], where i is inner order, j is contour index. 
+        """
+        offset = 0.4
         pl = Pipeline()
         pl.load(self.mesh_file)
         pl.load_config()
         pl.slice()
+        
+        
         pe = pathengine.pathEngine()
         plane = pl.get_plane(0)
-        # group_contour = mkspiral.get_region_boundary_from_slice(pe, plane)
+        
         contour_tree = pe.convert_plane_to_PyPolyTree(plane)
-        group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')        
+        #pl.show(contour_tree.Childs[0].Contour)
+        group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')  
         
-        #for cs in group_boundary.values():
-            #pe.iso_contours_of_a_region.clear()
-            #iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset)       
-            
+        #################################
+        # Generate N color list
+        #################################
+        def generate_RGB_list(N):
+            import colorsys
+            HSV_tuples = [(x*1.0/N, 0.8, 0.9) for x in range(N)]
+            RGB_tuples = map(lambda x: colorsys.hsv_to_rgb(*x), HSV_tuples)
+            rgb_list = tuple(RGB_tuples)
+            return np.array(rgb_list) * 255   
+        N = 50
+        colors = generate_RGB_list(N)        
+        
         spiral = []
+        # group_contour = mkspiral.get_region_boundary_from_slice(pe, plane)
         for boundary in group_boundary.values():
-            spiral = mkspiral.spiral(pe, boundary, offset)
+            for c in boundary:
+                pl.add_polyline_to_scene(c, (1,0,1))
+                
+            pe.iso_contours_of_a_region.clear()
+            iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)     
             
-        pl.show(spiral)  
+            iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours)     
+            graph.to_Mathematica("")
+    
+            if not graph.is_connected():
+                print("not connected")
+                ret = pe.reconnect_from_leaf_node(graph, iso_contours, abs(offset * 1.2))
+                if(ret):
+                    print("re-connect...")
+                    graph.to_Mathematica("")
+    
+            # generate a minimum-weight spanning tree
+            graph.to_reverse_delete_MST()
+            graph.to_Mathematica("")
+            # generate a minimum-weight spanning tree
+            pocket_graph = graph.gen_pockets_graph()
+            pocket_graph.to_Mathematica("")
+            # generate spiral for each pockets
+            # deep first search
+            spirals = {}
+            pe.dfs_connect_path_from_bottom(0, pocket_graph.nodes, iso_contours_2D, spirals, offset) 
+            
+            #return spirals[0] 
         
-       
-            
-    def test2(self):
-        logging.info("test2-----")           
+            #spiral = mkspiral.spiral(pe, boundary, offset)
+            #spiral = pe.fill_spiral_in_connected_region(boundary, offset)
+            #spiral = pe.smooth_curve_by_savgol(spiral, 3, 1)            
+            #pl.add_polyline_to_scene(spirals)        
+            print(type(spirals))
+            print(spirals)
+            pl.add_polyline_to_scene(spirals[0])
+                
+        
+        pl.show()        
 
         
  

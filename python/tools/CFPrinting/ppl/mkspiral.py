@@ -73,7 +73,7 @@ def get_region_boundary_from_slice(pe, plane):
        a list, each element represents a group of boundaries of a connected region.
     '''     
     contour_tree = pe.convert_plane_to_PyPolyTree(plane)
-    group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')
+    group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0') 
     #closed region
     cs_region_list = []
     for cs_region in group_boundary.values():

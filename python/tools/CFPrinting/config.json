@@ -1,1 +1,1 @@
-{"first_layer_thickness": 0.3, "layer_thickness":0.8, "infill_offset": 0.4, "collision_distxy": 50, "collision_distz": 50}
+{"first_layer_thickness": 0.3, "layer_thickness":10.0, "infill_offset": 0.4, "collision_distxy": 50, "collision_distz": 50}
