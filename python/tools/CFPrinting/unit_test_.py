@@ -89,10 +89,9 @@ class Pipeline(object):
             
     def load_config(self, config_filename=None):
         config_file = str(config_filename) if config_filename is not None else 'config.json'
-        f = open(config_file, "r")    
-        str = f.read()
-        self.param = json.loads(str)
-        f.close()
+        
+        with open(config_file, 'r') as f:
+            self.param = json.load(f)
             
     def slice(self):
         P     = None
@@ -137,7 +136,7 @@ class TestClass(unittest.TestCase):
         self.mesh_file   = 'models/part1.stl'        
             
     
-   #@unittest.skip("just skip")     
+    @unittest.skip("just skip")     
     def test_fill_isocontours_in_onelayer(self): 
         """
         Filling iso contours with contours[i][j], where i is inner order, j is contour index. 
@@ -175,7 +174,7 @@ class TestClass(unittest.TestCase):
         pl.show()
        
             
-    @unittest.skip("just skip")     
+    #@unittest.skip("just skip")     
     def test_fill_continuousFS_in_onelayer(self): 
         logging.info("test2: test_fill_continuousFS_in_onelayer-----")  
         """
@@ -187,7 +186,9 @@ class TestClass(unittest.TestCase):
         pl.load_config()
         pl.slice()
         
-        
+        #pl.pathplan()
+        #pl.optimize() # 
+        #pl.gen_gcode()
         pe = pathengine.pathEngine()
         plane = pl.get_plane(0)
         
@@ -241,11 +242,11 @@ class TestClass(unittest.TestCase):
         
             #spiral = mkspiral.spiral(pe, boundary, offset)
             #spiral = pe.fill_spiral_in_connected_region(boundary, offset)
-            #spiral = pe.smooth_curve_by_savgol(spiral, 3, 1)            
+            spiral = pe.smooth_curve_by_savgol(spirals[0], 5, 1)            
             #pl.add_polyline_to_scene(spirals)        
-            print(type(spirals))
-            print(spirals)
-            pl.add_polyline_to_scene(spirals[0])
+            #print(type(spirals))
+            #print(spirals)
+            pl.add_polyline_to_scene(spiral)
                 
         
         pl.show()        
