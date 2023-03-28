@@ -406,8 +406,15 @@ class pathEngine:
                     child_node = pyclipper.PyPolyNode()
                     child_node.Parent = node
                     child_node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)
-                    child_node.IsOpen = False
-                    child_node.IsHole = False if plane[i].orientation == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
+                    child_node.IsOpen = False                    
+                    # Consider bugs in Minetto's slicer, here using tree info to determine being holes or not.
+                    child_node.IsHole = True if cur_depth % 2 == 1 else False #plane[i].orientation() == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
+                    if (child_node.IsHole):
+                        if(plane[i].orientation() == 1):
+                            print("convert to cw")
+                            child_node.Contour = np.flip(child_node.Contour, 0)                    
+                    
+                    print("{} orientation: {}, isHole: {},  ccw : {}".format(i, plane[i].orientation(), child_node.IsHole, suPath2D.ccw(child_node.Contour)))
                     DSF(child_node, cur_depth, i)
                     node.Childs.append(child_node)
                     
@@ -420,7 +427,7 @@ class pathEngine:
             node.Parent = root        
             node.Contour = ConvertVertices2NumpyArray(plane[i].vertices)  #  -> (x rows, 2)                   
             node.IsOpen = False
-            node.IsHole = False if plane[i].orientation() == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1    
+            node.IsHole = False #if plane[i].orientation() == 1 else True   # CLOCKWISE = -1   | COUNTERCLOCKWISE =  1   
             DSF(node, 0, i)
             root.Childs.append(node)   
             
@@ -571,7 +578,7 @@ class pathEngine:
         """
         self.offset = offset
         iso_contours_of_a_region = []
-        contours = input_contours
+        contours = input_contours.copy()
         
         # multiply 10 for hold precision, divide by 10 before return
         for i, c in enumerate(contours):
@@ -585,7 +592,7 @@ class pathEngine:
             contours = pco.Execute(offset)   
             iso_contours_of_a_region.append( contours)
             
-        for i in range(len(iso_contours_of_a_region)):
+        for i in range(1, len(iso_contours_of_a_region)):
             for j in range(len(iso_contours_of_a_region[i])):                
                 iso_contours_of_a_region[i][j] = np.array(iso_contours_of_a_region[i][j])/10
                
@@ -735,7 +742,16 @@ class pathEngine:
         #visualize
         graph = suGraph.suGraph()  
         graph.init_from_matrix(R)        
-        return iso_contours_2D, graph    
+        return iso_contours_2D, graph   
+    
+    def init_graph_by_isocontour(self, iso_contours):
+        """
+        TODO:
+        Init graph by iso contours relations, not by distance
+        """
+        G = suGraph.suGraph()  
+        # in (i,j) 
+        
     
     def reconnect_from_leaf_node(self, graph, iso_contours, dist_thresh):
         """

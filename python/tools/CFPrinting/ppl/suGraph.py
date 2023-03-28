@@ -39,6 +39,7 @@ class suGraph():
             ids = np.argwhere(matrix.T[i] == 1)
             node.pre += list(ids.reshape(len(ids)) )
             self.nodes.append(node)   
+        #print(self.matrix)  # for debug
     # construct self.matrix from simplified graph
     def get_matrix_from_graph(self):        
         n = len(self.nodes)
