@@ -709,9 +709,10 @@ class pathEngine:
         iso_contours_2D = []
         # contour distance threshold between adjacent layers
         dist_th = abs(self.offset) * 1.2  
-        inter_size = abs(self.offset)/6
-        if inter_size < 4:
-            inter_size = 4
+        #inter_size = abs(self.offset)/6
+        #if inter_size < 4:
+        #    inter_size = 4
+        inter_size = dist_th
 
         for i in range(len(iso_contours)):
             for j in range(len(iso_contours[i])):
