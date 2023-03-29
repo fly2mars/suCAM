@@ -58,7 +58,7 @@ class Polyline(object):
     def count(self):
         return len(self.data)#.shape[0]
     
-    # create a 1st Inner class
+    # create a Inner class for Point
     class Point3D:
         def __init__(self):
             self.x = 0.0
@@ -94,6 +94,10 @@ class Pipeline(object):
             self.param = json.load(f)
             
     def slice(self):
+        """
+        Slice by Minetto's slicer
+        Hold info in the slicer
+        """
         P     = None
         srt   = False
         delta = self.param['layer_thickness']
@@ -108,6 +112,24 @@ class Pipeline(object):
         """
         return self.slicer.planes[idx]
     
+    @unimplemented
+    def fill_layer(self, idx = 0, path_type=0):
+        """
+        @return path of one layer
+        @idx is layer index. Here the IO is 
+        @path_type = ISO_CONTOUR, FERMAT_SPIRAL ...
+        """
+        pass
+
+    @unimplemented
+    def optimize_one_layer(self, path):
+        """
+        @path input path, only from a closed region
+        @return optimized path
+        """
+        pass
+
+    
     def path_plan(self, param):
         self.path_verts = mkspiral.gen_continuous_path_from_slices(self.slicer, collision_dist_xy= 30, collision_dist_z= 3000, offset = -4)
     
@@ -116,17 +138,41 @@ class Pipeline(object):
         pass
   
     
-    def export(self, output_filename):
+    def export_path(self, output_filename):
         np.savetxt(output_filename, self.path_verts, fmt='%.4f')   
         print('Path file {} is generated'.format(output_filename))
+
+    @unimplemented
+    def export_gcode(self):
+        pass
         
     def add_polyline_to_scene(self, path, color=(1, 0, 0)):
         pl = Polyline(path)
         self.va.drawPolyline(pl).GetProperty().SetColor(color)
             
-           
+    @unimplemented
+    def run(self):
+        """
+        Running a slicing-path planning-gcode generation process.
+        """        
+        pass     
+    
+    @unimplemented
+    def run_web_server(self):
+        """
+        Running a web server as user interface
+        """
+        pass
+
     def show(self):
         self.va.display()
+
+    from enum import Enum
+    class PathType(Enum):
+        ISO_CONTOUR   = 0
+        FERMAT_SPIRAL = 1
+
+    
         
   
 
@@ -135,6 +181,19 @@ class TestClass(unittest.TestCase):
         self.config_file = 'config.json'
         self.mesh_file   = 'models/part1.stl'        
             
+    #@unittest.skip("just skip")     
+    def test_fill_with_pathEngine(self):         
+        logging.info("test: test_fill_with_pathEngine-----")
+        offset = 0.4
+        pl = Pipeline()
+        pl.load(self.mesh_file)
+        pl.load_config()       # load slice config file
+        pl.slice()
+        path = pl.fill_layer(0, pl.PathType.ISO_CONTOUR)
+        path = pl.fill_layer(0, pl.PathType.FERMAT_SPIRAL)
+        pl.optimize_one_layer(path)
+        # pl.show()
+        pass
     
     @unittest.skip("just skip")     
     def test_fill_isocontours_in_onelayer(self): 
@@ -142,7 +201,7 @@ class TestClass(unittest.TestCase):
         Filling iso contours with contours[i][j], where i is inner order, j is contour index. 
         """
         logging.info("test1: test_fill_isocontours_in_onelayer-----")
-        offset = 0.5
+        offset = 0.4
         pl = Pipeline()
         pl.load(self.mesh_file)
         pl.load_config()       # load slice config file
@@ -155,26 +214,26 @@ class TestClass(unittest.TestCase):
         contour_tree = pe.convert_plane_to_PyPolyTree(plane)
         #pl.show(contour_tree.Childs[0].Contour)
         group_boundary = pe.get_contours_from_each_connected_region(contour_tree, '0')        
-        
-        spiral = []
+                
         for cs in group_boundary.values():       
             #print(np.int16(cs))
             # add outter contour
-            for c in cs:
-                pl.add_polyline_to_scene(c, (1,0,1))
-                
             pe.iso_contours_of_a_region.clear()
             iso_contours = pe.fill_closed_region_with_iso_contours(cs, offset) 
             
             
             for i in range(len(iso_contours)):
                 for j in range(len(iso_contours[i])):
-                    pl.add_polyline_to_scene(iso_contours[i][j])            
+                    c = np.concatenate((iso_contours[i][j], np.array([iso_contours[i][j][0]])), axis=0)
+                    pl.add_polyline_to_scene(c)            
+            for c in cs:
+                c = np.concatenate((c, np.array([c[0]])), axis=0)
+                pl.add_polyline_to_scene(c, (0,0,1))            
                 
         pl.show()
        
             
-    #@unittest.skip("just skip")     
+    @unittest.skip("just skip")     
     def test_fill_continuousFS_in_onelayer(self): 
         logging.info("test2: test_fill_continuousFS_in_onelayer-----")  
         """
@@ -217,6 +276,12 @@ class TestClass(unittest.TestCase):
             pe.iso_contours_of_a_region.clear()
             iso_contours = pe.fill_closed_region_with_iso_contours(boundary, offset)     
             
+            # 这里之前使用最近距离建立相邻关系，考虑使用clipper的tree结构建立
+            ######################################
+            # Generate grpah from isocontour
+            ######################################
+            #def gen_graph_from_isocontours(iso_contours):
+            #    return iso_contours_2D, graph
             iso_contours_2D, graph = pe.init_isocontour_graph(iso_contours)     
             graph.to_Mathematica("")
     
